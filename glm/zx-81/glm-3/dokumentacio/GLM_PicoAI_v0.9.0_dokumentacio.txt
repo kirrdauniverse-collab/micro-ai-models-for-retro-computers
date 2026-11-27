@@ -1,0 +1,84 @@
+PICO-AI — v0.9.0 — GLM FORRÍTÁS
+================================
+
+MI EZ?
+A v0.8.1 bájtszint-javítás után ez az első ÚJJÁÉPÍTETT motor: a v0.5.4-es
+C-forrásból fordítva (z88dk 2.5 + zsdcc/SDCC backend), a felhasználó
+kéréslistájának magjával. A 14 tudásmodell BAJTONKÉNT AZONOS a v0.8.1-es
+kazettáéval (a verify szkript bizonyítja) — a tudás NEM változott.
+
+FŐ ÚJDONSÁGOK (amik a kazettán benne vannak)
+1. ANGOL FELÜLET — minden szöveg angolul (a modell angolul beszélt, most a
+   rendszer is).
+2. TARTÓS EMLÉKEZET (zóna): 152 bájt sima RAM a 0x7E40-0x7ED7 tartományban —
+   MINDEN képvég és a VARS-jelző FELETT, a gépi verem alatt. Túléli:
+   - a téma-blokk cseréket (a témaképek rövidek, a zóna fölöttük van),
+   - a /save teljes programmentést és visszatöltést,
+   - a hideg boot képbetöltését is (az 0x7E33-nál véget ér)!
+   Csak a kikapcsolás veszti el. Tartalom: AI-név, tulaj profil (név, nem,
+   év, időbélyeg, dátum, óra/perc), 2 vendég-profil hely, 4 tanult tény
+   (kulcs=érték), 2 emlékeztető, jelzőbitek (téma-javaslat be/ki, turbó).
+3. /memsave — A MEMÓIA-ADATOK ÖNMAGÁNAK MENTÉSE: a motor a ROM saját
+   OUT-BYTE ($031E) primitívjével ~5 s csend + "RTMEM16" név + 152 bájt
+   zónát pulzál a szalagra. ~30 mp (a teljes programmentés 2+ perc).
+   A boot a saját betöltőjével (IN-BYTE $034C) tudja visszatölteni,
+   EgyEOF-pillanatnyi csendnél tisztán leáll (nem resetel).
+4. BOOT MEMÓIA-VISSZATÖLTÉS Y/N: "restore saved memory from tape? (y/n)" —
+   az RTMEM16 blokk a boot után következik a kazettán.
+5. TÉMA-JAVASLAT Y/N: a beírt sorban kulcsszavakat keres (13 témakulcsszó);
+   ha talál, es "i also have the <PACK> pack? y/n" — Y: a ROM betölti
+   (a /topic úton, pontos blokknévvel), N: "sorry, no more information
+   is available on this." Az új téma felülírja az előzőt.
+6. THINKING-SÁV + PÖRGŐ KARAKTEREK: a D-FILE felső harmada (sorok 0-3):
+   0-2 = csomagolt állapot, 3. sor = STATUS sor — a generálás közben a
+   válasz utolsó ~31 karaktere fut le benne, és a jobb szélen pörög a
+   spinner (0x80 inverz szóköz + / - ) ( ) váltakozás). A némagondolási
+   fázis (SHIFT+9) GONDOLATAI MENNEK a sávba. Csak biztonságos kódok
+   kerülnek oda (0x00-0x3F sima, 0x80-0xBF inverz, SOHA a " macskaköröm,
+   soha 0x40-0x75/0x76/0xC0-0xFF — a fagyás-szabály).
+7. MATEMATIKA: "2 plus 2", "12 - 5", "3 times 4", "10 divided by 2" —
+   16 bites aritmetika, osztás 0-val védve.
+8. /NAME — az AI átnevezése (a zónában él, pl. "/name spock").
+9. ELGÉPELÉS-TŰRÉS: a parancsok 1 elírást tűrnek (/topl = /topic).
+
+PARANCSOK (kazetta-verzió): /help /topic N /save /memsave /new /quit /name
++ matematika + SHIFT 1-4 hőfok, SHIFT+9 gondolkodó kapcsoló.
+A görgetősáv (SHIFT+5/0) helyén most a spinner-tier van (útiterv-tétel).
+
+AZ ELRENDEZÉS (miért 18 soros a képernyő?)
+A 16K-ban a kód + modell + névtábla + rendszerváltozók egy 16 blokkos
+képbe kell menjenek a D-FILE ALATT. A v0.6.5-ös motor (13 628 B) helye
+nagyjából telt volt; az új funkciók miatt a képernyőt 24-ről 18 sorra
+csökkentettük és a D_FILE 0x7C00-ra került: sorok 0-2 állapot, 3 status,
+4-15 konzol, 16-17 a ROM alsó kijelzője. Ez ~1000 bájtot szabadított.
+
+AMI MÉG NINCS A KAZETTÁN (RTV9_SMALL — forráskészen benne a csomagban)
+A 16K-s kép szűkös: az alábbiak le vannak fordítva a forrásban, de a
+kazetta-motorból ki voltak hagyva a hely miatt; -DRTV9_SMALL=1 ELLENÉBEN
+építhetők (nagyobb RAM-konfigban futnak): /learn (ténytanulás),
+/user (3 felhasználó), /remind + /time + óra, /info, /sort (ABC-rendezés),
+színkeverés (kék+sárga=zöld...), emlékezet-események (boldog/fájdalom),
+idle-kérdező (10 perc után), turbó-szalagsebesség (ROM-poke: TX $032C/$0335,
+RX $0387/$0399 — valódi vasra, emulátorban standard sebesség marad).
+Ezek mindegyike szerepel a következő menet teendői közt.
+
+TURBÓ MENTÉS (valódi gép): a zone.c-ben készen áll a zone_tape_speed() —
+a ROM saját pulzus-késleltető konstansait írja át ~2x sebességre;
+emulátor-biztosított kikapcsolt állapotban szállít (a T81-ben a blokkok
+bájtai időszerint szabvány pulzusok).
+
+HASZNÁLAT (EightyOne):
+  1. Tape Manager-be kazettaként: GLM_PicoAI_v0.9.0_kazetta.T81
+  2. LOAD "" és RUN
+  3. boot: guide? y/n -> restore saved memory? y/n (első futás: n)
+  4. első futásnál profil: év, hónap, nap, óra, perc, név, nem, AI-név
+  5. "rewind to RTBASE16 + enter" -> a chat indul (pico-ai v0.9.0)
+  6. /topic 1..13, /memsave, /name, matematika, témajavaslat y/n
+
+SZERKEZET: 16 blokk (RTBOOT01, RTMEM16, RTBASE16 + 13 téma).
+EO81-formátum; minden chat-blokk: saját E_LINE-patch, záró 0x80,
+a farokcsapda-javítás (OUT FE; EI) benne; modellek 0x770D-nél.
+
+TUDOTT HATÁR: /quit még mindig nem áll le (a 3. sor újrahívja). A valódi
+vason az EO-próba vár. A memóriahely-nyomás miatt a kisebb funkciók a
+következő menetben jönnek vissza (a forrásban készen állnak).

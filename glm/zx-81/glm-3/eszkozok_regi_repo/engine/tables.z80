@@ -1,0 +1,75 @@
+; ====================================================================
+; tables.z80 — billentyű-mátrix, ASCII->ZX kódtábla, fix szövegek
+; ====================================================================
+
+; --- 8x5-ös mátrix (port magas bájtja = sor): a VALÓDI ZX81-elrendezés
+; (EightyOne forrás, kbstatus.cpp KBZX81; a ROM DECODE-jával egyező):
+; sor0 FE: SHIFT Z X C V   sor4 EF: 0 9 8 7 6
+; sor1 FD: A S D F G       sor5 DF: P O I U Y
+; sor2 FB: Q W E R T       sor6 BF: NEWLINE L K J H
+; sor3 F7: 1 2 3 4 5       sor7 7F: SPACE . M N B
+; A szkenn nyers kódot ad: sor*5+oszlop (0..39), a SHIFT a 0-s.
+; (RUBOUT = SHIFT+'0', a 20-as nyers kód + shift.)
+
+; nyers kód -> ZX karakterszám (0x00 = nincs karakter; 0x77 = RUBOUT)
+KEYCHR:
+; a betuk ZX-kodja = 0x26 + (betu - 'A') — VALÓDI mátrix-sorrendben!
+        DB 0x00, 0x3F, 0x3D, 0x28, 0x3B      ; 0-4    SHIFT Z X C V
+        DB 0x26, 0x38, 0x29, 0x2B, 0x2C      ; 5-9    A S D F G
+        DB 0x36, 0x3C, 0x2A, 0x37, 0x39      ; 10-14  Q W E R T
+        DB 0x1D, 0x1E, 0x1F, 0x20, 0x21      ; 15-19  1 2 3 4 5
+        DB 0x1C, 0x25, 0x24, 0x23, 0x22      ; 20-24  0 9 8 7 6
+        DB 0x35, 0x34, 0x2E, 0x3A, 0x3E      ; 25-29  P O I U Y
+        DB 0x76, 0x31, 0x30, 0x2F, 0x2D      ; 30-34  NEWLINE L K J H
+        DB 0x00, 0x1B, 0x32, 0x33, 0x27      ; 35-39  SPACE . M N B
+
+; --- ASCII (nagybetűs) -> ZX kód; ismeretlen -> szóköz
+; index: ASCII-0x20, 96 bejegyzés
+ASCIIZX:
+        DB 0x00, 0x00, 0x0B, 0x00, 0x0D, 0x00, 0x00, 0x00
+        DB 0x10, 0x11, 0x17, 0x15, 0x1A, 0x16, 0x1B, 0x18
+        DB 0x1C, 0x1D, 0x1E, 0x1F, 0x20, 0x21, 0x22, 0x23
+        DB 0x24, 0x25, 0x0E, 0x19, 0x13, 0x14, 0x12, 0x0F
+        DB 0x00, 0x26, 0x27, 0x28, 0x29, 0x2A, 0x2B, 0x2C
+        DB 0x2D, 0x2E, 0x2F, 0x30, 0x31, 0x32, 0x33, 0x34
+        DB 0x35, 0x36, 0x37, 0x38, 0x39, 0x3A, 0x3B, 0x3C
+        DB 0x3D, 0x3E, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00
+        DB 0x00, 0x26, 0x27, 0x28, 0x29, 0x2A, 0x2B, 0x2C
+        DB 0x2D, 0x2E, 0x2F, 0x30, 0x31, 0x32, 0x33, 0x34
+        DB 0x35, 0x36, 0x37, 0x38, 0x39, 0x3A, 0x3B, 0x3C
+        DB 0x3D, 0x3E, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00
+
+; --- hét napjai (a dátumrutin nyomtatja; nullával zárva)
+WEEKTAB:
+        DZ "MONDAY"
+        DB 0xFF
+        DZ "TUESDAY"
+        DB 0xFF
+        DZ "WEDNESDAY"
+        DB 0xFF
+        DZ "THURSDAY"
+        DB 0xFF
+        DZ "FRIDAY"
+        DB 0xFF
+        DZ "SATURDAY"
+        DB 0xFF
+        DZ "SUNDAY"
+        DB 0xFF
+
+; --- hónapok hossza (a szökőnapot a dátumrutin kezeli)
+MDAYS:
+        DB 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
+
+; --- LOAD-névtábla: slot 0 = alap, 1.. = témák (8 ZX-kód / név);
+; a build_t81.py a tényleges neveket írja ide
+NAMETAB:
+        DB "PICOBASE"
+        DB "PICOASTR"
+        DB "PICOSCIN"
+        DB "PICOBOOT"
+NAMETAB_N EQU 4
+
+; --- a 2-es BASIC sor LOAD-név-mezőjének címe — a BUILDER pótolja
+; (a téma-váltás ide írja a következő blokk nevét)
+NAMESLOT: DW 0xDEAD
+         DB 0xB1, 0x5C          ; bűnjel-pár: ezt keresi a builder

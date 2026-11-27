@@ -1,0 +1,64 @@
+GLM Pico AI v0.6.5 — DOKUMENTÁCIÓ
+==================================
+Ez a változat a "legeredményesebb vonal" (v0.4.5 → v0.5.4 → v0.6.5)
+legfejlettebb tagja. A kazetta bájtról bájtra megegyezik a korábbi
+GLM_v065_RT16_TOPICS.t81 fájllal; a programban ezzel a kézbesítéssel
+semmi nem változott. Az áttekintés, amiért ezt a változatot választottam:
+GLM_PicoAI_v0.8.0_valtozas_attekintes.txt.
+
+MI VAN A KAZETTÁN
+-----------------
+15 blokk, EightyOne .T81 formában:
+  RTBOOT01   15897 B  a boot-blokk: a teljes 16K-os alap (motor + BASE)
+  RTBASE16   15093 B  a BASE tudás, magával a motorral
+  RT-TUDOM, RT-MAGYR, RT-HOBBI, RT-EGESZ, RT-MUNKA, RT-MUVES, RT-TANUL,
+  RT-IRODA, RT-FILME, RT-PROGI, RT-ASTRO, RT-ASCII, RT-VERSE
+             mind 15093 B, témánként egy tudásblokk
+
+BETÖLTÉS
+--------
+1. Az EightyOne-ban a GLM_PicoAI_v0.6.5_kazetta.T81 fájlt KAZETTÁKÉNT
+   töltsd be (tape/kazetta menü), ne .p-ként.
+2. LOAD "" majd ENTER — a gép az RTBOOT01 blokkot hozza be.
+3. RUN. A boot-blokk BASIC-je:
+     1 REM <gépi kód>
+     6 IF USR 16514 … THEN LOAD "RT-…"
+   A gépi kód csak a REM után áll. A motor a RUN után maga keresi névre a
+   következő blokkot a szalagon (RTBASE16, majd a kiválasztott téma).
+
+HASZNÁLAT A CHATBEN
+-------------------
+  /TOPIC 1..13   témaváltás (a tudásblokk névre betöltése a szalagról)
+  SHIFT+0        a beviteli sor törlése
+
+AMIT MÁR BIZONYÍTOTTAM (bájtszinten, ma)
+----------------------------------------
+- Az EO a blokkokat nem vágja meg: mind a 15 blokknál 0 bájt levágás
+  (a v0.5.4-nél blokkonként 131–186 bájt tűnt el — az a hiba itt nincs).
+- Minden blokk E_LINE-ja = 0x4009 + blokkhossz, az utolsó bájt 0x80:
+  a ROM LOAD-ja INITIAL futása nélkül fejezi be a betöltést.
+- Az első sor minden blokkban REM-mel indul (0xEA).
+
+ISMERETES HIBÁK, HATÁROK
+------------------------
+- /quit nem állítja le a ciklust: a chat egyszerűen folytatódik.
+- Ezt a változatot még senki nem próbálta EightyOne-ban; csak a saját
+  Python-szimulációmban futott le a teljes lánc (LOAD → RUN → boot →
+  lánc-betöltés → gépelés → válasz → /TOPIC).
+- A README témalistája a 10–12. témánál nem egyezik a blokknevek
+  sorrendjével (irodalom/programozás/csillagászat vs. PROGI/ASTRO/ASCII);
+  melyik helyes, az EO-próbából derül ki.
+- Az egyes .p fájlok csak gyorsbetöltésre valók; a láncbetöltéshez a
+  teljes .T81 kell.
+
+A CSOMAGBAN
+-----------
+  GLM_PicoAI_v0.6.5_kazetta.T81        a kazetta (15 blokk)
+  GLM_PicoAI_v0.6.5_dokumentacio.txt   ez a fájl
+  GLM_PicoAI_v0.6.5_valtozasnaplo.txt  a kézbesítés naplója
+  GLM_PicoAI_v0.6.5_forraskod_csomag.zip
+      kazetta/        a .T81, a 15 .p és a 15 külön .t81, README
+      forras_v0.5.4/  a C-motor forrása és a bevált t81build16.py készítő
+      szimulacio/     a szimulátorok és az ellenőrző eszközök
+      scriptek/       a mai bájtszintű ellenőrző szkriptek
+      ellenorzes/     az ellenőrzések nyers kimenete

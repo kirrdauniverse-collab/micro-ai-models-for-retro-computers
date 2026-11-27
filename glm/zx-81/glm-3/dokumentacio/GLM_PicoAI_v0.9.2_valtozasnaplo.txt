@@ -1,0 +1,18 @@
+v0.9.2 VÁLTOZÁSNAPLÓ (2026-11-26)
+==================================
+! A v0.9.1 "első blokkra bevillanó fekete csíkok + fagyás" GYÖKÉROKA:
+  a v0.8.1-es farokcsapda-patch ($7AE5: CA A9 02 -> D3 FE FB) FELTÉTEL
+  NÉLKÜLI portírást tett a motor szalag-olvasó hurokfejébe. Az EO
+  forrása (zx81.cpp) szerint minden OUT ($FE) NMI-ON + sync-impulzus a
+  jelenlegi képsorba => iterációnkénti sync => fekete csíkok + fagyás.
+  (A v0.8.1 emiatt SOHA nem futott volna élőben — a v0.9.1 volt az első
+  éles próbája.)
++ v0.9.2: mind a 15 blokkban $7AE5: D3 -> DB (IN A,($FE) — nem ír portot),
+  minden más bájt a v0.8.1-ből. Banner "0.8.1"->"0.9.2" (14 blokk, 2 bájt).
+- a v0.9.1 RTMEM16 blokk ELTÁVOLÍTVA: a név-kódjának utolsó bájtjából
+  hiányzott a bit7-es terminátor (0x22 vs 0xA2) — a ROM blokk-szkennerét
+  szétverte volna; a szalagmotor úgysem használja.
+* Új eszközök: scripts/diff_cassets.py (verziók bájtdiffje),
+  scripts/trap_disasm.py (a $7AE0-környék dekódolása),
+  scripts/build_v092.py (a v0.9.2 építése + verifikáció).
+* STATE.md: 13. menet a teljes bizonyítéklánccal.

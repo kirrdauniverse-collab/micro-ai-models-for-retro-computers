@@ -1,0 +1,115 @@
+=== PICO AI szimulátoros menet ===
+TAPE: LOAD PICOBOOT — 1559 bájt (0x4009-0x4620)
+# === boot: ML-telepito (D_FILE 0x7B00, zona, RAMTOP 0x715F) ===
+TAPE: LOAD PICOBASE — 12535 bájt (0x4009-0x7100)
+--- profil utan ---
++--------------------------------+
+|                                |
+|                                |
+|                                |
+|pico t2 R1 00:00                |
+|you 00:0000T ready              |
+|                                |
+|pico 00:0000T00H                |
+|.                               |
+|                                |
+|                                |
+|                                |
+|                                |
+|                                |
+|                                |
+|                                |
+|                                |
+|                                |
+|                                |
+|thinking                        |
+|>                               |
+|                                |
+|                                |
+|                                |
+|                                |
++--------------------------------+
+--- elso valasz ---
++--------------------------------+
+|                                |
+|                                |
+|                                |
+|pico t2 R1 00:00                |
+|you 00:0001T ready              |
+|HELLO                           |
+|pico 00:0000T00H                |
+|HELLO .                         |
+|                                |
+|                                |
+|                                |
+|                                |
+|                                |
+|                                |
+|                                |
+|                                |
+|                                |
+|                                |
+|thinking                        |
+|>                               |
+|                                |
+|                                |
+|                                |
+|                                |
++--------------------------------+
+TAPE: SAVE PICOBASE — 15889 bájt felülírva
+TAPE: SAVE PICOBASE — 15889 bájt felülírva
+--- datum ---
++--------------------------------+
+|                                |
+|                                |
+|                                |
+|pico t2 R1 00:00                |
+|you 00:0001T ready              |
+|TODAY                           |
+|pico 00:0000T00H                |
+|HELLO .                         |
+|                                |
+|                                |
+|                                |
+|                                |
+|                                |
+|                                |
+|                                |
+|                                |
+|                                |
+|                                |
+|thinking                        |
+|>                               |
+|                                |
+|                                |
+|                                |
+|                                |
++--------------------------------+
+--- identitas ---
++--------------------------------+
+|                                |
+|                                |
+|                                |
+|pico t2 R1 00:00                |
+|you 00:0002T ready              |
+|WHO MADE                        |
+|pico 00:0000T00H                |
+|MADE WITH GLM HELP BY SAFAR SAND|
+|OR                              |
+|                                |
+|                                |
+|                                |
+|                                |
+|                                |
+|                                |
+|                                |
+|                                |
+|                                |
+|thinking                        |
+|>                               |
+|                                |
+|                                |
+|                                |
+|                                |
++--------------------------------+
+=== menet vége ===

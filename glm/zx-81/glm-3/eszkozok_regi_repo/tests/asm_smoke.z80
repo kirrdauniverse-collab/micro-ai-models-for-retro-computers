@@ -1,0 +1,132 @@
+; asm_smoke.z80 — assembler körútteszt: minden használt utasításforma
+        ORG 0x4082
+
+SYSVARS EQU 0x4009
+D_FILE  EQU 0x400C
+FRAMES  EQU 0x4034
+
+start:
+        LD SP,0x7FFD
+        LD BC,0xFEFE
+        LD DE,SYSVARS+2
+        LD HL,D_FILE
+        LD A,(DE)
+        LD A,(BC)
+        LD A,(SYSVARS)
+        LD (DE),A
+        LD (BC),A
+        LD (D_FILE),A
+        LD HL,(FRAMES)
+        LD (FRAMES),HL
+        LD A,B
+        LD C,A
+        LD B,5
+        LD (HL),0x76
+        LD (HL),C
+        LD D,(HL)
+        LD A,(HL)
+        INC A
+        DEC C
+        INC HL
+        DEC DE
+        INC (HL)
+        DEC (HL)
+        INC SP
+        ADD HL,BC
+        ADD HL,SP
+        SBC HL,DE
+        ADC HL,HL
+        ADD A,B
+        ADD A,7
+        ADD A,(HL)
+        SUB 3
+        SUB C
+        AND A
+        AND 0x3F
+        OR 0x80
+        XOR A
+        CP 0x76
+        CP E
+        PUSH AF
+        PUSH HL
+        POP DE
+        PUSH BC
+        POP AF
+        EX DE,HL
+        EX AF,AF'
+        RLCA
+        RRCA
+        RLA
+        RRA
+        RLC B
+        RRC C
+        RL D
+        RR E
+        SLA H
+        SRA L
+        SRL A
+        SRL (HL)
+        BIT 0,A
+        BIT 7,(HL)
+        RES 3,B
+        SET 4,C
+        JP start
+        JP NZ,done
+        JP Z,start
+        JP C,done
+        JP NC,start
+        JP (HL)
+        JR fwd
+        JR NZ,fwd
+        JR Z,loop
+        JR C,fwd
+        JR NC,loop
+        DJNZ loop
+        CALL sub1
+        CALL NZ,sub1
+        CALL Z,sub1
+        RET
+        RET NZ
+        RET Z
+        RET C
+        RET NC
+        NOP
+        HALT
+        DAA
+        CPL
+        CCF
+        SCF
+        IN A,(0xFE)
+        OUT (0xFF),A
+        IN A,(C)
+        OUT (C),A
+        RST 0x08
+        LDIR
+        LDDR
+        CPIR
+        NEG
+done:
+        LD A,1
+        RET
+
+fwd:
+        LD B,16
+loop:
+        RLCA
+        DJNZ loop
+        JR done
+
+sub1:
+        PUSH HL
+        POP HL
+        RET
+
+tbl:
+        DB 1,2,3,0x76,'A',"MIX"
+        DZ "PICO AI v0.1 OK"
+        DZI "INVERZ FEJLEC"
+        DW start, done, SYSVARS
+        DS 8,0xAA
+        ALIGN 16
+end:
+        DB 0

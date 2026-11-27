@@ -1,0 +1,160 @@
+; ====================================================================
+; date.z80 — dátum- és időérzék: napok számítása, hétköznapnév,
+; „hány napja ismerlek", óra:perc — MIND számítás, nem táblázat
+; (az egyetlen konstans: 2000-01-01 szombat volt; ebből a hét napja
+; minden dátumra KISZÁMOLTATIK)
+; ====================================================================
+
+; --- (a modul a main.z80 változóit használja: CLOCKMIN, DAYNO, STDAY0,
+;     STBUF; a fixed_print a gen.z80-ból, a con_* a screen.z80-ból)
+
+; ------------------------------------------------------------------
+; dayno_calc — DAYNO = STDAY0 + CLOCKMIN/1440 (u16)
+dayno_calc:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        PUSH AF
+        LD HL,(CLOCKMIN)
+        LD B,0
+        LD DE,1440
+dn1:    LD A,H
+        OR L
+        JR Z,dn2
+        OR A
+        SBC HL,DE
+        JR NC,dn1b
+        ADD HL,DE
+        JR dn2
+dn1b:   INC B
+        JR dn1
+dn2:    LD HL,(STDAY0)
+        LD A,B
+        LD E,A
+        LD D,0
+        ADD HL,DE
+        LD (DAYNO),HL
+        POP AF
+        POP BC
+        POP DE
+        POP HL
+        RET
+
+; ------------------------------------------------------------------
+; weekday — A = (DAYNO + 5) mod 7 (0 = hétfő; 2000-01-01 szombat)
+weekday:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        LD HL,(DAYNO)
+        LD DE,5
+        ADD HL,DE
+wd1:    LD DE,7
+        LD A,H
+        OR A
+        JR NZ,wd3
+        LD A,L
+        CP E
+        JR C,wd2
+wd3:    OR A
+        SBC HL,DE
+        JR wd1
+wd2:    LD A,L
+        POP BC
+        POP DE
+        POP HL
+        RET
+
+; ------------------------------------------------------------------
+; clock_hhmm — óra:perc nyomtatása a CLOCKMIN-ből (a kurzorra)
+clock_hhmm:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        PUSH AF
+        LD HL,(CLOCKMIN)
+        LD C,0
+        LD DE,0xFFC4      ; -60
+ch1:    LD A,H
+        OR A
+        JR NZ,ch2
+        LD A,L
+        CP 60
+        JR C,ch3
+ch2:    ADD HL,DE
+        INC C
+        JR ch1
+ch3:    LD A,C
+ch4:    CP 24
+        JR C,ch5
+        SUB 24
+        JR ch4
+ch5:    CALL con_putdig
+        LD A,0x0E         ; ':'
+        CALL con_putc
+        LD A,L
+        CALL con_putdig
+        POP AF
+        POP BC
+        POP DE
+        POP HL
+        RET
+
+; ------------------------------------------------------------------
+; date_reply — „milyen nap van ma?": HÉTKÖZNAPNÉV + idő, számítva
+dr_w:   DB 0
+date_reply:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        PUSH AF
+        CALL dayno_calc
+        CALL weekday
+        LD (dr_w),A
+        LD A,14           ; "TODAY IS "
+        CALL fixed_print
+        LD HL,WEEKTAB
+        LD A,(dr_w)
+        OR A
+        JR Z,dr_pr
+        LD B,A
+dr_s:   LD A,(HL)
+        INC HL
+        CP 0xFF
+        JR NZ,dr_s
+        DJNZ dr_s
+dr_pr:  CALL con_print
+        XOR A
+        CALL con_putc     ; szóköz
+        CALL clock_hhmm
+        LD A,0x1B         ; '.'
+        CALL con_putc
+        POP AF
+        POP BC
+        POP DE
+        POP HL
+        RET
+
+; ------------------------------------------------------------------
+; age_reply — „hány éves/hány napos vagyok?": a profil óta eltelt napok
+age_reply:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        PUSH AF
+        CALL dayno_calc
+        LD A,12           ; "I AM "
+        CALL fixed_print
+        LD HL,(DAYNO)
+        LD DE,(STDAY0)
+        OR A
+        SBC HL,DE
+        LD A,L
+        CALL con_putdig
+        LD A,13           ; "DAYS OLD."
+        CALL fixed_print
+        POP AF
+        POP BC
+        POP DE
+        POP HL
+        RET

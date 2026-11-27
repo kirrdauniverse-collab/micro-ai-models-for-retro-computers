@@ -1,0 +1,85 @@
+!!! VISSZAVONVA 2026-11-24 !!!
+E naplo token-allasai HIBASAK: a v0.7.3 kazetta BASIC-je FOR (0xEB)
+tokennel indul a REM (0xEA) helyett, es PLOT (0xF6) all a PRINT (0xF5)
+helyen. A valtozat hasznalhatatlan. Helyes tabla es magyarazat:
+GLM_PicoAI_v0.8.0_valtozas_attekintes.txt
+
+GLM Pico AI v0.7.3 — VÁLTOZÁSNAPLÓ ÉS MŰKÖDÉSI LEÍRÁS
+======================================================
+Név: GLM_PicoAI_v0.7.3_kazetta.T81   (blokkok: PICOBOOT, PICOBASE, PICOASTR, PICOSCIN)
+Készült: 2026-11-24, GLM (z.ai) — megrendelő: Sáfár Sándor
+
+A JELENTÉS OKA — v0.7.2 után is „4/2" a RUN-ra
+--------------------------------------------------
+A két képernyőkép értékelése:
+- 1. kép (PICOBOOT betöltés -> ENTER): a gép üres szerkesztőt mutat
+  K-kurzorral. Ez a TERVEZETT állapot: a boot utolsó sora NEW, ami
+  törli a programot és friss szerkesztőt ad — NEM reset! (A külső
+  jelek alapján viszont nem zárható ki, hogy valós reset is történt.)
+- 2. kép (PICOBASE/PICOASTR -> RUN): ismét a „4/2" jelentés.
+
+A TÉNYLEGES GYÖKÉROK — HIBÁS BASIC TOKENEK A BUILDBEN
+------------------------------------------------------
+A ZX81 ROM szó-tábláját (0x0111) ezúttal teljesen, bájtonként
+kinyertem és a kazetta sorainak bájtjaihoz hasonlítottam. Eredmény:
+a build_t81.py "ellenőrzött horgonyai" TÉVESEK voltak — pl. a 0xEF
+nem a LOAD, hanem az INPUT tokenje! A hibás konstansokkal a kazetta
+minden BASIC sora értelmetlen utasítás-sorozatnak fordult le, pl. a
+2-es sor (`IF USR 16514=1 THEN LOAD "..."`) a valóságban:
+  `RAND PEEK 16514=1<>INPUT "..."` — ettől állt meg a RUN "4/2"-vel
+és ettől volt a boot után is rendellenes a viselkedés.
+
+A VALÓDI ZX81 token-tábla (a ROM-ból kinyerve, a javítás alapja):
+  NEW=0xE7  SCROLL=0xE8  CONT=0xE9  DIM=0xEA  REM=0xEB  FOR=0xEC
+  GOTO=0xED  GOSUB=0xEE  INPUT=0xEF  LOAD=0xF0  LIST=0xF1  LET=0xF2
+  PAUSE=0xF3  NEXT=0xF4  POKE=0xF5  PRINT=0xF6  PLOT=0xF7  RUN=0xF8
+  SAVE=0xF9  RAND=0xFA  IF=0xFB  CLS=0xFC  UNPLOT=0xFD  CLEAR=0xFE
+  RETURN=0xFF  LPRINT=0xE2  LLIST=0xE3  STOP=0xE4  SLOW=0xE5
+  FAST=0xE6  THEN=0xDF  TO=0xE0  STEP=0xE1  USR=0xD5  PEEK=0xD4
+  (a korábbi build: PRINT=0xF5, INPUT=0xEE, NEW=0xE6, RAND=0xF9,
+   USR=0xD4, IF=0xFA, THEN=0xDE, LOAD=0xEF, SAVE=0xF8, REM=0xEA —
+   MIND hibás!)
+
+JAVÍTÁS
+-------
+- tools/build_t81.py: a 10 token-konstans a valódi táblára cserélve.
+  A sorok bájtjai mostantól szabályos ZX81 BASIC-et adnak:
+  1 REM <motor>, 2 IF USR 16514=1 THEN LOAD "...", 3 IF USR 16514=2
+  THEN SAVE "PICOBASE", 4 RAND USR 16514.
+- (A v0.7.2-es javítások érintetlenek maradnak: E_LINE=0x7040 a ~290 B
+  munkaterülettel, USR BC-visszatérés + OLDSP, IY=0x4000, a valódi
+  billentyű-mátrix, a szimulátor SBC/ADC/LAST-K javítások.)
+
+ELLENŐRZÉS
+----------
+- t81_validate: mind a 4 blokk formailag rendben (E_LINE=0x7040,
+  záró 0x80, EightyOne .T81-formátum).
+- A szimulátorban a K-módú LOAD begépelése a valódi ROM-mal lefut
+  (a 'J' gomb LOAD tokent ad — a szerkesztő E_LINE-jában 0xF0 látszik).
+
+HOGYAN HASZNÁLD (fontos — a K-mód kulcsszó-gombjai!)
+----------------------------------------------------
+A ZX81 K-kurzor mellett minden gomb EGY-EGY teljes kulcsszót ad —
+és a gép KIÍRJA a teljes szót, ahogy nyomod. Ezért nem kell fejből
+tudni: nyomkodd a gombokat, és nézd, mi jelenik meg!
+- Betöltés: K-kurzor mellett addig nyomogasd a betűgombokat, míg a
+  LOAD szó megjelenik (nálam a J gomb adta), majd idézőjel kétszer
+  (SHIFT+P, SHIFT+P) és NEWLINE. (Az üres LOAD "" bármely blokkot
+  betölti, sorrendben a következőt.)
+- Futás: addig nyomogatás, míg RUN jelenik meg, majd NEWLINE.
+  (Ha a RUN nem az R gombon van, próbáld a többi betűt — a gép
+  kijelzi, melyik adja!)
+
+ISMERT, NYITOTT PONTOK (őszintén)
+---------------------------------
+- A teljes LOAD→RUN→chat út a ROM-szimulátorban most először futtatható
+  a video-generátor funkcionalizálásával (0x0292/0x02B5 eltérítés); a
+  begépelési fázisok időzítése még finomításra szorul, ezért a végső
+  bizonyíték az éles EightyOne-os próba. Ha bármi elakad: képernyőképet
+  kérlek (a 4/2-es jelentés sorszáma és a képernyő tartalma eldönti).
+- A motor /SAVE és /TOPIC láncának BASIC-oldali viselkedése (ERR_SP)
+  még éles próbát igényel.
+
+CSOMAG TARTALMA: GLM_PicoAI_v0.7.3_forraskod_csomag.zip
+(teljes Z80-forrás: engine/*.z80; eszközök: tools/*.py; tudás-források:
+data/topics/*.txt; docs/; kazetta: dist/ZX81PICO.T81).

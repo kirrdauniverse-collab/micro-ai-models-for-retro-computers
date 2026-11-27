@@ -1,0 +1,79 @@
+GLM Pico AI v0.8.0 — VÁLTOZASNAPLÓ (2026-11-24)
+==================================================
+
+AZ ELŐZMÉNY (a felhasználó EO-próbája)
+--------------------------------------
+A v0.6.5 kazetta: a betöltés és a profilkérdések LEFUTOTTAK, a gép
+kérte a kazetta tekerését az RTBASE16 blokkhoz, ENTER után a blokk
+betöltött — majd 2-3 grafikus karakter jelent meg alul, a legfelső
+sor kiúszott balra, a kép fehér lett, és a gép a PC 004x (a ROM
+videó-generátora) táján ragadt.
+
+A GYÖKÉROK (bájtszinten bizonyítva)
+------------------------------------
+1. A v0.6.5 minden blokkjában a BASIC-program végének 0x80 jelzője
+   HELYETT 0x76 állt (a boot-ban a 0x54BA, a többi 14 blokkban a
+   0x75B5 címen). A hiba a v0.5.4 készítő kódjában keletkezett: a
+   `prog = b"".join(lines) + b"\x76"` sor mellett a "end-of-program
+   marker" komment áll — de a program-vég jelzője 0x80, nem 0x76.
+   A ROM sorokat feldolgozó rutinja (NEXT-PTR) a 0x80-nál ismeri fel
+   a program végét; a 0x76-nál viszont ÚJ SORFEJET olvas: a mögötte
+   álló modell-blob ("RTLM"...) bátjaiból "sorszám=0x7652,
+   hossz=19508" adódik. A sorfej-olvasás így a modell-blobon át
+   kifut a memória végéig — EZ adta a grafikus karaktereket és a
+   videó-generátorba való szaladást (fehér kép, PC 004x).
+   A boot azért futott mégis: ott a hibás 0x76 után 0x00-töltelék
+   áll (üres "sorok"), így a keresés átfutott a VARS-jelzőig; a
+   lánc második betöltésénél viszont közvetlenül a modell-blob
+   következett.
+2. A blokkok CH_ADD rendszer-változója a munkaterületre (E_LINE+4)
+   mutatott — a ROM betöltése E_LINE-1-ig ír, odája sosem jut el,
+   a lánc-betöltés után az értelmező ezért a régi boot-blokk ott
+   maradt bájtjait pásztázta.
+
+A JAVÍTÁS (scripts/patch_v080.py, képfájl-szintű)
+-------------------------------------------------
+Blokkonként két bájt:
+  1. a sorok utáni 0x76 -> 0x80 (program-vég jelző);
+  2. CH_ADD := az utolsó sor lezáró 0x76-jának címe
+     (RTBOOT01: 0x54B9, a többi blokk: 0x75B4).
+A motor binárisát nem érinti (újrafordítani nem tudom: az SDCC/
+z88dk nincs a gépen). A konténer blokkhossz-mezői változatlanok.
+
+AZ ELLENŐRZÉS (mind a 15 blokkra lefutott)
+------------------------------------------
+  E_LINE = 0x4009 + képhossz        ✓ (a ROM LOAD a blokk végén zár)
+  a blokk utolsó bájtja 0x80        ✓ (az EO-vágás nem tesz kárt)
+  a sorok utáni jelző 0x80           ✓ (a NEXT-PTR megáll)
+  CH_ADD az utolsó sor 0x76-ján     ✓ (a lánc-betöltés után sorvég)
+A gépi kód továbbra is csak a REM (0xEA) után áll; az 1. sor minden
+blokkban REM-mel kezdődik, szöveget a motor PRINT-elve ír.
+
+BECSÜLT HATÁS A FUTÁSRA
+-----------------------
+A lánc-betöltés után az értelmező a sorvég 0x76-ot találja (CH_ADD),
+az 1. sor REM-jén át a 2. sor IF USR 16514 = 1 utasításához ér, és
+a betöltött blokk motorja (0x4082) elindul — a lánc a tervezett
+módon folytatódik. A javítás NINCS élesben kipróbálva: a
+számítás a ROM bájtjaiból és a blokkok bájtjaiból levezetett.
+
+HATÁROK, AMI NEM VÁLTOZOTT
+--------------------------
+- a /quit hibája (a chat nem áll le) változatlan;
+- a motor binárisa változatlan (13542 bájt @0x4082);
+- a v0.6.5 README témalistája változatlan (az eltérése benne maradt);
+- a .p fájlok csak gyorsbetöltésre valók.
+
+A CSOMAG
+--------
+  GLM_PicoAI_v0.8.0_kazetta.T81       a javított kazetta (15 blokk)
+  GLM_PicoAI_v0.8.0_dokumentacio.txt  a használati útmutató
+  GLM_PicoAI_v0.8.0_valtozasnaplo.txt ez a fájl
+  GLM_PicoAI_v0.8.0_forraskod_csomag.zip
+      kazetta/    a javított .t81 és a 29 javított egyedi fájl,
+                  a v0.6.5 README
+      scriptek/   a javító szkript (patch_v080.py) és a riportok
+      szimulacio/ a ROM-szimulátor (romsim.py, zx81sim.py)
+      ellenorzes/ a bájtszintű ellenőrzések kimenete
+      forras_v0.5.4/ a C-motor forrása (a hibás builder-rel együtt,
+                  a hiba megjelölésével — l. lent)

@@ -1,0 +1,33 @@
+# chat_flow.txt — teljes beszélgetéses forgatókönyv a szimulátorban
+# (a boot BASIC-részeit a driver modellezi: LOAD = a felhasználó LOAD "",
+#  a NEW/RAMTOP hatást az igazi ML-telepítő végzi)
+LOAD PICOBOOT
+RUN 700000
+ECHO === boot: ML-telepito (D_FILE 0x7B00, zona, RAMTOP 0x715F) ===
+LOAD PICOBASE
+RUN 2000
+TYPEL 2026
+RUN 700000
+TYPEL 11
+RUN 700000
+TYPEL 22
+RUN 700000
+TYPEL 20
+RUN 700000
+TYPEL 15
+RUN 700000
+TYPEL SANDOR
+RUN 700000
+TYPEL M
+RUN 700000
+SNAP profil utan
+TYPEL HELLO
+RUN 700000
+SNAP elso valasz
+TYPEL WHAT DAY IS TODAY
+RUN 700000
+SNAP datum
+TYPEL WHO MADE YOU
+RUN 700000
+SNAP identitas
+END

@@ -1,0 +1,83 @@
+GLM Pico AI v0.7.2 — VÁLTOZÁSNAPLÓ ÉS MŰKÖDÉSI LEÍRÁS
+======================================================
+Név: GLM_PicoAI_v0.7.2_kazetta.T81   (belső blokknevek: PICOBOOT, PICOBASE, PICOASTR, PICOSCIN)
+Készült: 2026-11-23, GLM (z.ai) — megrendelő: Sáfár Sándor
+
+A JELENTÉS OKA — „lefagy a RUN parancsra"
+--------------------------------------------------
+A képernyőképen a ZX81 kijelzőjén a „4/2" jelentés állt: a ZX81 ROM
+hibakódjaiban a 4 = OUT OF RAM (a ROM TEST-ROOM rutinja, 0x0EC5:
+STKEND + 36 bájt + kért hely nem fért a verem alá), a 2 = a BASIC 2-es
+sora (`IF USR 16514=1 THEN LOAD "..."`). Tehát nem fagyás volt, hanem
+memóriahiány-hiba: a PICOBASE/PICOASTR/PICOSCIN képek E_LINE-ja
+(0x7100) és a RAMTOP (0x715F) között mindössze ~90 bájt hagytunk — a
+ZX81 BASIC értelmező sorközi gépi veremnek + számológép-veremnek
+ez kevés, ezért a `RUN` a 2. sor kiértékelésekor determinisztikusan
+4-es hibakóddal megállt.
+
+JAVÍTOTT HIBÁK (mind a ROM-disassembly-ből levezetve)
+------------------------------------------------------
+1. MEMÓRIAREND (a fő javítás):
+   - A szótár szóterülete (DICT_ST) csak a ténylegesen használt
+     bájtjaiig kerül a képre (1328 B a 1536 helyett), a tudáscsomag
+     (KB) 0x6900-ról 0x6840-re költözött.
+   - E_LINE: 0x7100 -> 0x7040. Így a STKEND (0x7045) és a RAMTOP
+     (0x715F) között ~290 bájt szabad munkaterület marad — ez futja
+     az `IF USR ... THEN LOAD` kiértékeléséhez. (Módosított fájlok:
+     engine/config.z80, tools/build_t81.py.)
+2. USR-VISSZATÉRÉSI KONVENCió (ROM 1AC5 „usr"):
+   - A ZX81 USR-a a visszatérési értéket a BC regiszterpárban várja,
+     nem az A-ban. A motor most BC-vel tér vissza (1 = téma-váltás
+     /LOAD, 2 = /SAVE, a BASIC `IF USR 16514=1/2 THEN ...` lánc miatt).
+   - A motor a BASIC visszatérési címét (a ROM STACK-BC-ét) belépéskor
+     a OLDSP változójába menti, és minden visszatérésnél (mn_endr)
+     visszatölti — korábban a `LD SP,STACK` felülírta, a RET ezért
+     sosem tudott rendben visszatérni a BASIC-be. (engine/main.z80)
+3. IY-REGISZTER: a motor belépése `LD IY,0x4000`-et állít be (a v0.5.4
+   bizonyított mintája szerint) a ROM-rutinok IY-konvenciójának
+   betartására. (engine/main.z80)
+4. BILLENTYŰZET (engine/keys.z80, engine/tables.z80):
+   - A KEYCHR tábla és a nyers kód-konstansok a VALÓDI ZX81-mátrixra
+     épülnek (EightyOne forrásából, kbstatus.cpp KBZX81 tábla):
+       FE: SHIFT Z X C V   FD: A S D F G   FB: Q W E R T
+       F7: 1 2 3 4 5       EF: 0 9 8 7 6  DF: P O I U Y
+       BF: NEWLINE L K J H 7F: SPACE . M N B
+   - RUBOUT = SHIFT+'0' (a régi kódban nem létező külön RUB-gomb volt).
+   - SHIFT-gyorsbillentyűk az új kódokhoz igazodva (1-4: hőmérséklet,
+     5/6: görgetés le/fel, 9: érvelési mód, 0: RUBOUT, NEWLINE: szóköz,
+     S: /SAVE).
+5. SZIMULÁTOR-JAVÍTÓKOK (a teszthalmaz megbízhatóságához):
+   - romsim.py: a LAST-K rendszer-változó bájtsorrendje a ROM-konvencióra
+     javítva (mem[0x4025]=sormaszk, mem[0x4026]=kulcsbitek).
+   - zx81sim.py: SBC/ADC HL,rr utasítások regiszterkiválasztási hibája
+     javítva (Python-precedencia: `sub & 0x30 >> 4`); a billentyűmátrix
+     a valódi elrendezésre cserélve; a FRAMES-számláló csak aktív videó
+     (NMI) esetén lép.
+
+ELLENŐRZÉSEK
+------------
+- tools/t81_validate.py: mind a 4 blokk formailag rendben (EightyOne
+  .T81-formátum; a rövid blokkok utolsó bájtja 0x80).
+- tools/romflow_test.py (a valódi 8K ROM futtatásával):
+  A boot-telepítő: D_FILE a 0x7B00-on, tartós zóna nullázva,
+  RAMTOP=0x715F a 0x4004-en ✓; a ROM NEW-ja a felső memóriát
+  sértetlenül hagyja ✓; a motor belépése a profil-bekérő UI-t
+  rajzolja (FIRST RUN. LETS SET YOU UP. / YEAR?) ✓.
+
+ISMERT, NYITOTT PONTOK (őszintén)
+---------------------------------
+- A teljes „betöltés -> RUN -> chat" útvonalat a ROM-szimulátorban
+  még nem futtattam végig (a szimulátor szerkesztő-útvonalán további,
+  eddig fel nem fedett hűségi korlátok lehetnek); a javítás logikája
+  a ROM-disassembly-ből vezetve determinisztikus. Kérlek, próbáld ki
+  EightyOne-ban: PICOBOOT betöltése -> RUN -> ENTER -> LOAD "" ->
+  RUN — ha bármi elakad, küldd a képernyőképet.
+- A BASIC veremcím (SP) maga a motor visszatérése után nem áll vissza
+  a régi értékre (csak a visszatérési cím), így a /SAVE és /TOPIC
+  láncok BASIC-oldali viselkedése további próbát igényel.
+- A chat_flow szerkesztő-tesztjét az új billentyűkiosztással még nem
+  futtattam újra.
+
+A csomag további tartalma: GLM_PicoAI_v0.7.2_forraskod_csomag.zip
+(teljes Z80-forrás: engine/*.z80; eszközök: tools/*.py; tudás-források:
+data/topics/*.txt; dokumentumok: docs/; kazetta: dist/ZX81PICO.T81).

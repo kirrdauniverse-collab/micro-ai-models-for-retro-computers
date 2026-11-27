@@ -1,0 +1,36 @@
+v0.9.0 VÁLTOZÁSNAPLÓ (2026-11-25)
+==================================
++ ÚJJÁÉPÍTETT MOTOR: v0.5.4 C-forrás -> z88dk 2.5 + zsdcc (SDCC backend)
+  (a toolchain forrásból fordítva: bison/flex/libxml2 deb-kivonattal;
+  z88dk-z80asm.lib -m* hibája kézzel javítva; SDCC OOM miatt soros vég)
++ ANGOL felület mindenhol
++ TARTÓS ZÓNA 0x7E40-0x7ED7 (152 B): AI-név, tulaj profil, 2 vendég,
+  4 tény, 2 emlékeztető, jelzőbitek — túléli témacserét, /save-et, hideg bootot
++ /memsave: csak a memória-adat megy szalagra (RTMEM16, ROM OUT-BYTE,
+  ~30 mp) — a v0.6.5 /save teljes programmentése (2+ perc) mellette él
++ boot: MEMÓIA-VISSZATÖLTÉS y/n (saját IN-BYTE betöltő, EAR-előellenőrzés
+  ~20 s — csendes szalagnál TISZTA leállás, nem reset)
++ TÉMA-JAVASLAT: kulcsszópásztázás + "load it? y/n"; N-re: "sorry, no more
+  information is available on this." (a kért üzenet)
++ THINKING-SÁV: D-FILE 3. sor = ticker + spinner (inverz karakterekkel,
+  a " macskaköröm és minden tiltott kód kizárva); SHIFT+9-nél a
+  gondolat-vázlat fut bele
++ MATEMATIKA: plus/minus/times/divided (+ +-*/ jelek), osztás-0 védelem
++ /NAME: az AI neve (zónában perzisztens)
++ ELGÉPELÉS-TŰRÉS: parancsokon 1 elírás (első betű nem bocsánatos)
++ KÉPERNYŐ: 24 sor -> 18 sor, D_FILE 0x7B00 -> 0x7C00 (~1000 B kód hely)
++ BUILDER: t81build16_v090.py — saját E_LINE-patch blokkonként
+  (a v0.6.5 mechanikája), záró 0x80 minden képen, RTMEM16 blokk,
+  farokcsapda-javítás (OUT FE; EI) automatikusan a friss binárisban
++ VERIFY: verify_v090.py — mind a 16 blokk OK; a 14 modell BAJTONKÉNT
+  azonos a v0.8.1 kazetta modelljeivel (a tudás változatlan)
++ TOOLCHAIN: GLM_z88dk_2.5_zx81_toolchain.tar.gz (22 MB, zcc+zsdcc+zx81 clib)
++ FORRÁSCSOMAG: GLM_PicoAI_v0.9.0_forraskod_csomag.zip (engine+port+tools)
+* A v0.8.1-es farokcsapda-javítás ($7AE0: JP Z,$02A9 -> OUT FE; EI)
+  minden újrafordított blokkban automatikusan újraalkalmazva
+- KIHAGYVA A HELY MIATT (forráskészen, RTV9_SMALL kikapcsolásával
+  építhetők): /learn /user /remind /time /info /sort színkeverés
+  emlékezet-események idle-kérdező turbó-sebesség — következő menet
+TUDOTT HATÁR: /quit nem áll le (a 3. sor újrahívja — v0.6.5 óta ismert);
+a valódi vas EO-tesztje vár; a romsim-alapú chat-forgatókönyv teszt nem
+futott le ebben a menetben (az EO-próbád dönti el a következő irányt).

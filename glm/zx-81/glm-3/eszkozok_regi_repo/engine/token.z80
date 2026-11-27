@@ -1,0 +1,547 @@
+; ====================================================================
+; token.z80 — tokenizáló: szóhasítás, szótár-hash-keresés, toldalék-
+; levágás (-S/-ED/-ING), fuzzy illesztés (elgépelés-tűrés), számok
+; értelmezése, ismeretlen szavak literáljának megjegyzése.
+;
+; A hash (RLC+XOR bájtonként, +hossz) és a +1-gyel való szondálás
+; bitpontosan egyezik a tools/kbtrain.py építőjével.
+; Pufferek (a main változó-blokkjában): TBUF/TFBUF/TDFBUF/TCNT,
+; NUMVAL, UNKP/UNKL, WBUF.
+; ====================================================================
+
+; ---ZX kódok, amikeket itt használunk
+C_A EQU 0x26
+C_D EQU 0x29
+C_E EQU 0x2A
+C_G EQU 0x2C
+C_I EQU 0x2E
+C_N EQU 0x33
+C_S EQU 0x38
+C_0 EQU 0x1C
+
+; levezett bitek (TDFBUF)
+D_PLU EQU 1
+D_PAST EQU 2
+D_PROG EQU 4
+
+; ------------------------------------------------------------------
+; zxhash — HL = szó, B = hossz -> A = hash (töri: B-t számlálónak)
+zxhash:
+        PUSH BC
+        PUSH HL
+        XOR A
+        LD C,B
+zh1:    RLC A
+        XOR (HL)
+        INC HL
+        DJNZ zh1
+        ADD A,C
+        POP HL
+        POP BC
+        RET
+
+; ------------------------------------------------------------------
+; dict_lookup — HL = szó, B = hossz -> A = token (0xFF: nincs)
+dl_p:   DW 0
+dl_l:   DB 0
+dl_home: DB 0
+dl_t:   DB 0
+dl_c:   DB 0
+dl_s:   DW 0
+dl_sl:  DB 0
+dict_lookup:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        LD (dl_p),HL
+        LD A,B
+        LD (dl_l),A
+        CALL zxhash
+        LD (dl_home),A
+        LD A,64
+        LD (dl_c),A
+dlp1:   LD A,(dl_home)
+        LD E,A
+        LD D,0
+        LD HL,DICT_HI
+        ADD HL,DE
+        LD A,(HL)
+        CP 0xFF
+        JR Z,dl_miss
+        LD (dl_t),A
+        ADD A,A
+        LD E,A
+        LD D,0
+        LD HL,DICT_OF
+        ADD HL,DE
+        LD E,(HL)
+        INC HL
+        LD D,(HL)
+        LD HL,DICT_ST
+        ADD HL,DE
+        LD A,(HL)
+        LD (dl_sl),A
+        LD B,A
+        LD A,(dl_l)
+        CP B
+        JR NZ,dl_next
+        INC HL
+        LD (dl_s),HL
+        LD HL,(dl_p)
+        EX DE,HL
+        LD HL,(dl_s)
+        LD A,(dl_l)
+        LD B,A
+dlc1:   LD A,(DE)
+        CP (HL)
+        JR NZ,dl_next
+        INC DE
+        INC HL
+        DJNZ dlc1
+        LD A,(dl_t)
+        JR dl_out
+dl_next:
+        LD A,(dl_home)
+        INC A
+        LD (dl_home),A
+        LD A,(dl_c)
+        DEC A
+        LD (dl_c),A
+        JR NZ,dlp1
+dl_miss:
+        LD A,0xFF
+dl_out: POP BC
+        POP DE
+        POP HL
+        RET
+
+; ------------------------------------------------------------------
+; fuzzy_lookup — HL = szó, B = hossz -> A = token (0xFF: nincs)
+; tűrés: azonos KEZDŐ karakter + hossz ±1 (elgépelés-tűrés v0.1)
+fz_p:   DW 0
+fz_l:   DB 0
+fz_t:   DB 0
+fz_dl:  DB 0
+fz_s:   DW 0
+fuzzy_lookup:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        LD (fz_p),HL
+        LD A,B
+        LD (fz_l),A
+        XOR A
+        LD (fz_t),A
+fz1:    LD A,(fz_t)
+        CP 253
+        JR NC,fz_no
+        ADD A,A
+        LD E,A
+        LD D,0
+        LD HL,DICT_OF
+        ADD HL,DE
+        LD E,(HL)
+        INC HL
+        LD D,(HL)
+        LD HL,DICT_ST
+        ADD HL,DE
+        LD A,(HL)
+        LD (fz_dl),A
+        LD B,A
+        LD A,(fz_l)
+        CP B
+        JR Z,fz_chk
+        JR NC,fz_hi
+        ; A < B: csak B-A==1 elfogadható
+        INC A
+        CP B
+        JR NZ,fz_next
+        JR fz_chk
+fz_hi:  ; A > B: csak A-B==1 elfogadható
+        DEC A
+        CP B
+        JR NZ,fz_next
+fz_chk: ; első ÉS második karakter egyezés (egyetlen betű túl laza
+        ; volt: a HELLO a HOUR-hoz illeszkedett volna)
+        LD (fz_s),HL
+        LD HL,(fz_p)
+        EX DE,HL           ; DE = a keresett szó
+        LD A,(DE)
+        LD B,A
+        LD HL,(fz_s)
+        INC HL             ; a hossz-bajt utan jonnek a betuk
+        LD A,(HL)
+        CP B
+        JR NZ,fz_next
+        LD A,(fz_l)
+        CP 2
+        JR C,fz_hit        ; egybetus szonal elég az elso egyezes
+        INC DE
+        INC HL
+        LD A,(DE)
+        LD B,A
+        LD A,(HL)
+        CP B
+        JR NZ,fz_next
+fz_hit: LD A,(fz_t)
+        JR fz_out
+fz_no:  LD A,0xFF
+        JR fz_out
+fz_next:
+        LD A,(fz_t)
+        INC A
+        LD (fz_t),A
+        JR fz1
+fz_out: POP BC
+        POP DE
+        POP HL
+        RET
+
+; ------------------------------------------------------------------
+; fs_atk — A = k (1 = utolsó, 2 = utolsó előtti, ...) -> A = karakter
+fs_atk:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        LD B,A
+        LD A,(fs_l)
+        SUB B
+        LD E,A
+        LD D,0
+        LD HL,(fs_w)
+        ADD HL,DE
+        LD A,(HL)
+        POP BC
+        POP DE
+        POP HL
+        RET
+
+; ------------------------------------------------------------------
+; fs_copy — B darab bájt (fs_w)-ból WBUF-ba
+fs_copy:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        PUSH AF
+        LD HL,(fs_w)
+        LD DE,WBUF
+fsc1:   LD A,(HL)
+        LD (DE),A
+        INC HL
+        INC DE
+        DJNZ fsc1
+        POP AF
+        POP BC
+        POP DE
+        POP HL
+        RET
+
+; ------------------------------------------------------------------
+; fold_suffix — a (tk_w)/(tk_len) szóra: -S / -ED / -ING levágás és
+; lookup; kimenet: A = token (0xFF: nem sikerült), a fs_df a jelző-bit
+fs_w:   DW 0
+fs_l:   DB 0
+fs_df:  DB 0
+fs_n:   DB 0
+fold_suffix:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        PUSH AF
+        XOR A
+        LD (fs_df),A
+        LD HL,(tk_w)
+        LD (fs_w),HL
+        LD A,(tk_len)
+        LD (fs_l),A
+        ; --- -S (hossz >= 3, utolsó S)
+        LD A,1
+        CALL fs_atk
+        LD B,A
+        LD A,(fs_l)
+        CP 3
+        JR C,fsed
+        LD A,B
+        CP C_S
+        JR NZ,fsed
+        LD A,(fs_l)
+        DEC A
+        LD B,A
+        LD A,D_PLU
+        JR fscut
+fsed:   ; --- -ED (hossz >= 3, utolsó D, előtte E)
+        LD A,(fs_l)
+        CP 3
+        JR C,fsing
+        LD A,1
+        CALL fs_atk
+        CP C_D
+        JR NZ,fsing
+        LD A,2
+        CALL fs_atk
+        CP C_E
+        JR NZ,fsing
+        LD A,(fs_l)
+        SUB 2
+        LD B,A
+        LD A,D_PAST
+        JR fscut
+fsing:  ; --- -ING (hossz >= 4, utolsó G, aztán N, aztán I)
+        LD A,(fs_l)
+        CP 4
+        JR C,fsno
+        LD A,1
+        CALL fs_atk
+        CP C_G
+        JR NZ,fsno
+        LD A,2
+        CALL fs_atk
+        CP C_N
+        JR NZ,fsno
+        LD A,3
+        CALL fs_atk
+        CP C_I
+        JR NZ,fsno
+        LD A,(fs_l)
+        SUB 3
+        LD B,A
+        LD A,D_PROG
+fscut:  ; levágott hossz B-ben, jelző A-ban
+        LD (fs_df),A
+        LD A,B
+        LD (fs_n),A
+        CALL fs_copy
+        LD HL,WBUF
+        LD A,(fs_n)
+        LD B,A
+        CALL dict_lookup
+        CP 0xFF
+        JR NZ,fsout
+        ; a levágott alak sem volt a szótárban: következő toldalék?
+        ; (v0.1: egy kör — a fuzzy következik a hívóban)
+fsno:   LD A,0xFF
+fsout:  POP AF
+        POP BC
+        POP DE
+        POP HL
+        RET
+
+; ------------------------------------------------------------------
+; try_number — a (tk_w)/(tk_len) szó számjegye-e? A = 1 és NUMVAL, ha igen
+tn_2:   DW 0
+tn_p:   DW 0
+tn_v:   DW 0
+try_number:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        LD A,(tk_len)
+        OR A
+        JR Z,tn_no
+        LD B,A
+        LD HL,0
+        LD (tn_v),HL
+        LD HL,(tk_w)
+        LD (tn_p),HL
+tn1:    LD HL,(tn_p)
+        LD A,(HL)
+        CP C_0
+        JR C,tn_no
+        CP C_0+10
+        JR NC,tn_no
+        SUB C_0
+        PUSH AF
+        LD HL,(tn_v)
+        ADD HL,HL
+        LD (tn_2),HL
+        ADD HL,HL
+        ADD HL,HL
+        LD DE,(tn_2)
+        ADD HL,DE
+        POP AF
+        LD E,A
+        LD D,0
+        ADD HL,DE
+        LD (tn_v),HL
+        LD HL,(tn_p)
+        INC HL
+        LD (tn_p),HL
+        DJNZ tn1
+        LD HL,(tn_v)
+        LD (NUMVAL),HL
+        LD A,1
+        JR tn_out
+tn_no:  XOR A
+tn_out: POP BC
+        POP DE
+        POP HL
+        RET
+
+; ------------------------------------------------------------------
+; handle_unknown — ismeretlen szó: tanult-zóna + literál-megjegyzés;
+; a tkv TOK_UNK-ra áll, UNKP/UNKL a bemenet szavára mutat
+hu_prev: DB 0
+handle_unknown:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        PUSH AF
+        LD A,(TCNT)
+        OR A
+        JR Z,hu_np
+        DEC A
+        LD E,A
+        LD D,0
+        LD HL,TBUF
+        ADD HL,DE
+        LD A,(HL)
+        LD (hu_prev),A
+        JR hu_go
+hu_np:  XOR A
+        LD (hu_prev),A
+hu_go:  LD HL,(tk_w)
+        LD A,(hu_prev)
+        LD B,A
+        CALL learn_add
+        LD HL,(tk_w)
+        LD (UNKP),HL
+        LD A,(tk_len)
+        LD (UNKL),A
+        LD A,TOK_UNK
+        LD (tkv),A
+        POP AF
+        POP BC
+        POP DE
+        POP HL
+        RET
+
+; ------------------------------------------------------------------
+; tokenize — IBUF (szavak 0x00-val elválasztva, 0xFF-fel zárva) ->
+; TBUF / TFBUF / TDFBUF / TCNT; NUMVAL; UNKP/UNKL
+tk_cur: DW 0
+tk_w:   DW 0
+tk_len: DB 0
+tk_df:  DB 0
+tkv:    DB 0
+tkf:    DB 0
+tokenize:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        PUSH AF
+        XOR A
+        LD (TCNT),A
+        XOR A
+        LD (NUMFL),A
+        LD HL,IBUF
+        LD (tk_cur),HL
+tk0:    LD HL,(tk_cur)
+        LD A,(HL)
+        CP 0xFF
+        JP Z,tkdone
+        CP 0
+        JR NZ,tkw
+        INC HL
+        LD (tk_cur),HL
+        JR tk0
+tkw:    LD (tk_w),HL
+        XOR A
+        LD (tk_len),A
+tk1:    LD A,(HL)
+        CP 0xFF
+        JR Z,tk2
+        CP 0
+        JR Z,tk2
+        LD A,(tk_len)
+        INC A
+        LD (tk_len),A
+        INC HL
+        CP 15
+        JR C,tk1
+tk2:    LD (tk_cur),HL
+        ; 1) közvetlen szótárkeresés
+        XOR A
+        LD (tk_df),A
+        LD HL,(tk_w)
+        LD A,(tk_len)
+        LD B,A
+        CALL dict_lookup
+        CP 0xFF
+        JR NZ,tkst
+        ; 2) toldaléklevágás
+        CALL fold_suffix
+        CP 0xFF
+        JR Z,tk3
+        LD A,(fs_df)
+        LD (tk_df),A
+        JR tkst
+tk3:    ; 3) fuzzy illesztés
+        XOR A
+        LD (tk_df),A
+        LD HL,(tk_w)
+        LD A,(tk_len)
+        LD B,A
+        CALL fuzzy_lookup
+        CP 0xFF
+        JR NZ,tkst
+        ; 4) szám?
+        CALL try_number
+        CP 1
+        JR Z,tknum
+        ; 5) ismeretlen
+        CALL handle_unknown
+        JR tkst
+tknum:  LD A,TOK_NUM
+        LD (tkv),A
+        LD A,1
+        LD (NUMFL),A
+        XOR A
+        LD (tk_df),A
+        JR tkst2
+tkst:   LD (tkv),A
+tkst2:  ; token tárolás
+        LD A,(TCNT)
+        CP 16
+        JR NC,tk0c
+        LD E,A
+        LD D,0
+        LD HL,TBUF
+        ADD HL,DE
+        LD A,(tkv)
+        LD (HL),A
+        ; szótári jelzők
+        LD A,(tkv)
+        CP 253
+        JR NC,tkfl0
+        LD E,A
+        LD D,0
+        LD HL,DICT_FL
+        ADD HL,DE
+        LD A,(HL)
+        LD (tkf),A
+        JR tkfl1
+tkfl0:  XOR A
+        LD (tkf),A
+tkfl1:  LD A,(TCNT)
+        LD E,A
+        LD D,0
+        LD HL,TFBUF
+        ADD HL,DE
+        LD A,(tkf)
+        LD (HL),A
+        LD A,(TCNT)
+        LD E,A
+        LD D,0
+        LD HL,TDFBUF
+        ADD HL,DE
+        LD A,(tk_df)
+        LD (HL),A
+        LD A,(TCNT)
+        INC A
+        LD (TCNT),A
+tk0c:   JP tk0
+tkdone: POP AF
+        POP BC
+        POP DE
+        POP HL
+        RET

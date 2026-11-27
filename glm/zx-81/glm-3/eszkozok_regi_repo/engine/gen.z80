@@ -1,0 +1,1185 @@
+; ====================================================================
+; gen.z80 — a válaszgenerátor: trigger-kezelők, bigram-séta fogalmi
+; irányítással, hőmérséklet-vezérelt mintavétel, gondolkodási
+; újrangsorolás (a bemenetben szereplő tokenek +3 bónusszal)
+;
+; PK01 csomag (a tools/kbtrain.py írja — bitpontos elrendezés):
+;   +0 "PK01", +4 ver, +5 charset, +6 XOR
+;   +7 Nconc, +8 nplans, +9..10 M (u16 LE)
+;   +11 fogalmak: N*8 = [token][osztály][6 társ]
+;   +11+N*8 bigram-index: 512 B (token -> u16 kezdőbejegyzés, 0xFFFF nincs)
+;   utána bigramok: M*3 = [előző][következő][súly 1..8]
+;   PLANS: nplans * ([típus][n][tokenek])
+;   WISH:  56 token (8x1 ige + 8x2 tárgy + 8x2 hely + 8x2 idő)
+;   MOODS: 24 token (4 hangulat x 3 bejegyzés x 2 szó)
+;   SASS:  12 token (4 x 3)
+;   FIXED: [id][hossz][ZX-kódok]... 0xFF-fel zárva
+;   NUMT:  19 token (szám -> szó; ZERO..TWELVE, FIFTEEN, TENS, HUNDRED)
+; ====================================================================
+
+; --- a csomag fejléc-mezőinek címei
+KB_NCONC EQU KB+7
+KB_NPLAN EQU KB+8
+KB_M     EQU KB+9
+KB_CONC  EQU KB+11
+
+; --- számolt pointerek (kb_init tölti)
+KB_BIGI:  DW 0            ; bigram-index
+KB_BIGR:  DW 0            ; bigram tömb
+KB_PLANS: DW 0            ; a tervek utáni rész (WISH) kezdete
+KB_WISH:  DW 0
+KB_MOODS: DW 0
+KB_SASS:  DW 0
+KB_FIXED: DW 0
+KB_NUMT:  DW 0
+kbi_res:  DB 0
+
+; ------------------------------------------------------------------
+; kb_init — csomag-pointerek; A = 1 ha a mágia jó
+kb_init:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        PUSH AF
+        XOR A
+        LD (kbi_res),A
+        LD HL,KB
+        LD A,(HL)
+        CP 'P'
+        JR NZ,kbi_out
+        INC HL
+        LD A,(HL)
+        CP 'K'
+        JR NZ,kbi_out
+        ; BIGI = KB+11+Nconc*8 (DJNZ a törzs UTÁN számol — N-szer fut)
+        LD HL,KB_CONC
+        LD A,(KB_NCONC)
+        LD B,A
+        OR A
+        JR Z,kbi2
+kbi1:   LD DE,8
+        ADD HL,DE
+        DJNZ kbi1
+kbi2:   LD (KB_BIGI),HL
+        LD DE,512
+        ADD HL,DE
+        LD (KB_BIGR),HL
+        ; PLANS = BIGR + M*3
+        LD DE,(KB_M)
+        ADD HL,DE
+        ADD HL,DE
+        ADD HL,DE
+        LD (KB_PLANS),HL
+        ; a terveken átugrás: nplans * (2 + n)
+        LD A,(KB_NPLAN)
+        LD B,A
+        OR A
+        JR Z,kbi4
+kbi3:   INC HL              ; a hossz-bájt
+        LD C,(HL)
+        INC HL              ; a tokenek eleje
+        LD A,C
+        LD E,A
+        LD D,0
+        ADD HL,DE           ; + n -> a következo terv eleje
+        DJNZ kbi3
+kbi4:   LD (KB_WISH),HL
+        LD DE,56
+        ADD HL,DE
+        LD (KB_MOODS),HL
+        LD DE,24
+        ADD HL,DE
+        LD (KB_SASS),HL
+        LD DE,12
+        ADD HL,DE
+        LD (KB_FIXED),HL
+        ; rögzített szövegeken át: [id][len][codes]... 0xFF-ig
+kbi5:   LD A,(HL)
+        CP 0xFF
+        JR Z,kbi6
+        INC HL
+        LD C,(HL)
+        INC HL
+        LD A,C
+        LD E,A
+        LD D,0
+        ADD HL,DE
+        JR kbi5
+kbi6:   INC HL
+        LD (KB_NUMT),HL
+        LD A,1
+        LD (kbi_res),A
+kbi_out: POP AF
+        POP BC
+        POP DE
+        POP HL
+        LD A,(kbi_res)
+        RET
+
+; ------------------------------------------------------------------
+; bigram_slice — A = token -> HL = első bejegyzés, B = darabszám
+bs_tok: DB 0
+bs_p:   DW 0
+bigram_slice:
+        PUSH DE
+        LD (bs_tok),A
+        ADD A,A
+        LD E,A
+        LD D,0
+        LD HL,(KB_BIGI)
+        ADD HL,DE
+        LD E,(HL)
+        INC HL
+        LD D,(HL)
+        LD A,D
+        CP 0xFF
+        JR NZ,bs1
+        LD A,E
+        CP 0xFF
+        JR Z,bs_none
+bs1:    LD HL,(KB_BIGR)
+        ADD HL,DE
+        ADD HL,DE
+        ADD HL,DE
+        LD (bs_p),HL
+        XOR A
+        LD B,A
+bs2:    LD A,(HL)
+        LD C,A
+        LD A,(bs_tok)
+        CP C
+        JR NZ,bs3
+        INC B
+        INC HL
+        INC HL
+        INC HL
+        LD A,B
+        CP 16
+        JR C,bs2
+bs3:    LD HL,(bs_p)
+        LD A,B
+        JR bs_out
+bs_none:
+        XOR A
+        LD B,A
+bs_out: POP DE
+        RET
+
+; ------------------------------------------------------------------
+; in_input — A = token; kimenet A = 1 ha a bemeneti TBUF-ban van
+ii_t:   DB 0
+in_input:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        LD (ii_t),A
+        LD A,(TCNT)
+        LD B,A
+        LD HL,TBUF
+ii1:    LD A,B
+        OR A
+        JR Z,ii_no
+        LD A,(HL)
+        LD C,A
+        LD A,(ii_t)
+        CP C
+        JR Z,ii_yes
+        INC HL
+        DEC B
+        JR ii1
+ii_yes: LD A,1
+        JR ii_out
+ii_no:  XOR A
+ii_out: POP BC
+        POP DE
+        POP HL
+        RET
+
+; ------------------------------------------------------------------
+; concept_assoc — A = token -> A = véletlenszerű fogalom-társ (0: nincs)
+ca_tok: DB 0
+concept_assoc:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        PUSH AF
+        LD (ca_tok),A
+        LD HL,KB_CONC
+        LD A,(KB_NCONC)
+        LD B,A
+ca1:    LD A,B
+        OR A
+        JR Z,ca_no
+        LD A,(HL)
+        LD C,A
+        LD A,(ca_tok)
+        CP C
+        JR Z,ca_found
+        LD DE,8
+        ADD HL,DE
+        DEC B
+        JR ca1
+ca_found:
+        INC HL
+        INC HL
+        CALL rng_next
+        AND 7
+        CP 6
+        JR C,ca2
+        SUB 6
+ca2:    LD E,A
+        LD D,0
+        ADD HL,DE
+        LD A,(HL)
+        JR ca_out
+ca_no:  XOR A
+ca_out: POP AF
+        POP BC
+        POP DE
+        POP HL
+        RET
+
+; ------------------------------------------------------------------
+; pick_next — A = aktuális token -> A = következő (0: nincs)
+; T1: legjobb súlyú (mohó); T2..T4: küszöb-mintavétel a súlyon
+; (küszöb: T2=3, T3=1, T4=0 — minél melegebb, annál szélesebb választék);
+; gondolkodás esetén a bemenetben szereplő jelöltek +3 bónzust kapnak
+pn_p:   DW 0
+pn_cnt: DB 0
+pn_best: DB 0
+pn_bestw: DB 0
+pick_next:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        CALL bigram_slice
+        LD A,B
+        OR A
+        JR Z,pn_concept
+        LD (pn_p),HL
+        LD A,B
+        LD (pn_cnt),A
+        XOR A
+        LD (pn_best),A
+        LD (pn_bestw),A
+pn1:    LD HL,(pn_p)
+        LD C,(HL)          ; következő jelölt
+        INC HL
+        INC HL
+        LD B,(HL)          ; súly
+        INC HL
+        LD (pn_p),HL
+        ; gondolkodás: bemenet-bónusz
+        LD A,(REAS)
+        OR A
+        JR Z,pn2
+        LD A,C
+        CALL in_input
+        OR A
+        JR Z,pn2
+        LD A,3
+        ADD A,B
+        LD B,A
+pn2:    ; legjobb követése
+        LD A,B
+        LD D,A
+        LD A,(pn_bestw)
+        CP D
+        JR NC,pn3
+        LD A,D
+        LD (pn_bestw),A
+        LD A,C
+        LD (pn_best),A
+pn3:    ; hőmérséklet szerinti elfogadás
+        LD A,(TEMP)
+        CP 1
+        JR Z,pn4
+        CALL rng_next
+        AND 7
+        LD D,A             ; r
+        LD A,(TEMP)
+        CP 2
+        JR Z,pn_t2
+        CP 3
+        JR Z,pn_t3
+        XOR A
+        JR pn_acc
+pn_t2:  LD A,3
+        JR pn_acc
+pn_t3:  LD A,1
+pn_acc: LD E,A             ; küszöb
+        LD A,B
+        CP E
+        JR C,pn4
+        LD A,C
+        JR pn_out
+pn4:    LD A,(pn_cnt)
+        DEC A
+        LD (pn_cnt),A
+        JR NZ,pn1
+        LD A,(pn_best)
+        JR pn_out
+pn_concept:
+        CALL concept_assoc
+pn_out: POP BC
+        POP DE
+        POP HL
+        RET
+
+; ------------------------------------------------------------------
+; gen_walk — bigram-séta a SEEDTOK-ból az RBUF-ba (5..11 token)
+gw_cur: DB 0
+gw_n:   DB 0
+gw_max: DB 0
+gen_walk:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        PUSH AF
+        XOR A
+        LD (gw_n),A
+        CALL rng_next
+        AND 7
+        ADD A,5
+        LD (gw_max),A
+        LD A,(SEEDTOK)
+        LD (gw_cur),A
+gw1:    LD A,(gw_cur)
+        OR A
+        JR Z,gw_done
+        CP 253
+        JR Z,gw_done
+        LD A,(gw_n)
+        CP 16
+        JR NC,gw_done
+        LD E,A
+        LD D,0
+        LD HL,RBUF
+        ADD HL,DE
+        LD A,(gw_cur)
+        LD (HL),A
+        LD A,(gw_n)
+        INC A
+        LD (gw_n),A
+        LD C,A
+        LD A,(gw_max)
+        CP C
+        JR C,gw_done
+        LD A,(gw_cur)
+        CALL pick_next
+        LD (gw_cur),A
+        OR A
+        JR NZ,gw1
+gw_done:
+        LD A,(gw_n)
+        LD (RBUFN),A
+        POP AF
+        POP BC
+        POP DE
+        POP HL
+        RET
+
+; ------------------------------------------------------------------
+; render_reply — RBUF nyomtatása; az első szót az író nagybetűs,
+; a terminátort a TERMCH adja ('?' vagy '.'); a TOK_UNK literál,
+; a TOK_NUM szám-szó/digits
+rr_cap:  DB 0
+render_reply:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        PUSH AF
+        LD A,1
+        LD (rr_cap),A
+        XOR A
+        LD (rr_i),A
+rr1:    LD A,(rr_i)
+        LD C,A
+        LD A,(RBUFN)
+        CP C
+        JR C,rr_end
+        LD A,(rr_i)
+        LD E,A
+        LD D,0
+        LD HL,RBUF
+        ADD HL,DE
+        LD A,(HL)
+        OR A
+        JR Z,rr_next
+        CALL print_token
+        XOR A
+        LD (rr_cap),A
+rr_next:
+        LD A,(rr_i)
+        INC A
+        LD (rr_i),A
+        JR rr1
+rr_end: LD A,(TERMCH)
+        OR A
+        JR Z,rr_dot
+        CALL con_putc
+        JR rr_out
+rr_dot: LD A,0x1B           ; '.' ZX-kód
+        CALL con_putc
+rr_out: POP AF
+        POP BC
+        POP DE
+        POP HL
+        RET
+rr_i:   DB 0
+
+; ------------------------------------------------------------------
+; print_token — A = token nyomtatása + szóköz (TOK_UNK -> literál,
+; TOK_NUM -> szám szavakban/digits)
+print_token:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        PUSH AF
+        CP 254
+        JR Z,pt_unk
+        CP 255
+        JR Z,pt_num
+        ADD A,A
+        LD E,A
+        LD D,0
+        LD HL,DICT_OF
+        ADD HL,DE
+        LD E,(HL)
+        INC HL
+        LD D,(HL)
+        LD HL,DICT_ST
+        ADD HL,DE
+        LD A,(HL)
+        LD B,A
+        INC HL
+pt1:    LD A,(HL)
+        CALL con_putc
+        INC HL
+        DJNZ pt1
+        XOR A
+        CALL con_putc
+        JR pt_out
+pt_unk: LD HL,(UNKP)
+        LD A,(UNKL)
+        LD B,A
+ptu1:   LD A,(HL)
+        OR A
+        JR Z,ptu2
+        CALL con_putc
+        INC HL
+        DJNZ ptu1
+ptu2:   XOR A
+        CALL con_putc
+        JR pt_out
+pt_num: CALL num_words
+pt_out: POP AF
+        POP BC
+        POP DE
+        POP HL
+        RET
+
+; ------------------------------------------------------------------
+; num_words — NUMVAL szavakban (0..12, 15, 20/30/40/50, összetett
+; 21..59) vagy számjegyekben; + szóköz
+nw_t:   DB 0
+nw_v:   DW 0
+num_words:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        PUSH AF
+        LD HL,(NUMVAL)
+        LD (nw_v),HL
+        LD A,H
+        OR A
+        JR NZ,nw_dig
+        LD A,L
+        CP 100
+        JR NC,nw_h100
+        CP 13
+        JR NC,nw_13
+        LD E,A
+        JR nw_word
+nw_13:  CP 15
+        JR NZ,nw_16
+        LD E,13
+        JR nw_word
+nw_h100:
+        CP 100
+        JR NZ,nw_dig
+        LD E,18           ; HUNDRED
+        JR nw_word
+nw_16:  CP 20
+        JR C,nw_dig
+        CP 60
+        JR NC,nw_dig
+        ; 20..59: tizes-szó (+ egyes, ha 1..12)
+        LD B,0
+nwc1:   CP 10
+        JR C,nwc2
+        SUB 10
+        INC B
+        JR nwc1
+nwc2:   LD C,A            ; C = egyes
+        LD A,B
+        ADD A,12          ; tens index: 20->14, 30->15, 40->16, 50->17
+        LD E,A
+        LD D,0
+        LD HL,(KB_NUMT)
+        ADD HL,DE
+        LD A,(HL)
+        OR A
+        JR Z,nw_dig
+        CALL print_token
+        LD A,C
+        OR A
+        JR Z,nw_out
+        CP 13
+        JR NC,nw_dig
+        LD E,A
+        JR nw_word
+nw_word:
+        LD D,0
+        LD HL,(KB_NUMT)
+        ADD HL,DE
+        LD A,(HL)
+        OR A
+        JR Z,nw_dig
+        CALL print_token
+        JR nw_out
+nw_dig: LD A,(nw_v)
+        CALL con_putdig
+        XOR A
+        CALL con_putc
+nw_out: POP AF
+        POP BC
+        POP DE
+        POP HL
+        RET
+
+; ------------------------------------------------------------------
+; fixed_print — A = azonosító; a FIXED szekcióból nyomtat (+sorvég)
+fixed_print:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        PUSH AF
+        LD (fx_id),A
+        LD HL,(KB_FIXED)
+fx1:    LD A,(HL)
+        CP 0xFF
+        JR Z,fx_out
+        LD C,A
+        INC HL
+        LD A,(HL)
+        LD B,A
+        INC HL
+        LD A,C
+        LD D,A             ; D = id
+        LD A,(fx_id)
+        CP D
+        JR NZ,fx_skip
+        JR fx_hit          ; B = hossz, HL = szöveg
+fx_skip:
+        LD E,B
+        LD D,0
+        ADD HL,DE
+        JR fx1
+fx_hit: ; B karakter a HL-től
+fx_pr:  LD A,(HL)
+        CALL con_putc
+        INC HL
+        DJNZ fx_pr
+fx_out: POP AF
+        POP BC
+        POP DE
+        POP HL
+        RET
+fx_id:  DB 0
+
+; ------------------------------------------------------------------
+; bufhas — HL = minta (0-zárt ZX-kódok; szóköz = 0x00); A = 1 ha az
+; IBUF tartalmazza részkarakterláncként
+bh_p:   DW 0
+bh_i:   DW 0
+bufhas:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        LD (bh_p),HL
+        LD HL,IBUF
+        LD (bh_i),HL
+bh1:    LD HL,(bh_i)
+        LD A,(HL)
+        CP 0xFF
+        JR Z,bh_no
+        LD DE,(bh_p)
+bh2:    LD A,(DE)
+        CP 0xFF
+        JR Z,bh_yes
+        LD B,A
+        LD A,(HL)
+        CP 0xFF
+        JR Z,bh_no
+        CP B
+        JR NZ,bh_next
+        INC DE
+        INC HL
+        JR bh2
+bh_next:
+        LD HL,(bh_i)
+        INC HL
+        LD (bh_i),HL
+        JR bh1
+bh_yes: LD A,1
+        JR bh_out
+bh_no:  XOR A
+bh_out: POP BC
+        POP DE
+        POP HL
+        RET
+
+; ------------------------------------------------------------------
+; find_mood — A = hangulat-kód (0..3; 0xFF: nincs) az első F_MOOD
+; token alapján (moodszó -> kód leképezés a szó hossza+1. betűje?)
+; Egyszerű és robusztus: a mood-token AZONOSÍTÓJA alapján a MOODS
+; táblázat adataival nem foglalkozunk — a TFBUF jelzőjéből és az
+; IBUF-ból derítjük ki a típust (mintaillesztéssel).
+find_mood:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        LD HL,PAT_HAHA
+        CALL bufhas
+        OR A
+        JR NZ,fm_joy
+        LD HL,PAT_HIHI
+        CALL bufhas
+        OR A
+        JR NZ,fm_joy
+        LD HL,PAT_WOWM
+        CALL bufhas
+        OR A
+        JR NZ,fm_wow
+        LD HL,PAT_SADFACE
+        CALL bufhas
+        OR A
+        JR NZ,fm_sad
+        LD A,0xFF
+        JR fm_out
+fm_joy: XOR A
+        JR fm_out
+fm_wow: LD A,1
+        JR fm_out
+fm_sad: LD A,2
+fm_out: POP BC
+        POP DE
+        POP HL
+        RET
+
+; ------------------------------------------------------------------
+; find_prof — A = 1 ha trágárság volt (a TFBUF F_PROF bitje)
+find_prof:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        LD A,(TCNT)
+        LD B,A
+        LD HL,TFBUF
+fp1:    LD A,B
+        OR A
+        JR Z,fp_no
+        LD A,(HL)
+        AND F_PROF
+        JR NZ,fp_yes
+        INC HL
+        DEC B
+        JR fp1
+fp_yes: LD A,1
+        JR fp_out
+fp_no:  XOR A
+fp_out: POP BC
+        POP DE
+        POP HL
+        RET
+
+; ------------------------------------------------------------------
+; is_question — A = 1 ha kérdés (F_QUES jelző vagy '?' a bemenetben)
+is_question:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        LD A,(TCNT)
+        LD B,A
+        LD HL,TFBUF
+iq1:    LD A,B
+        OR A
+        JR Z,iq_2
+        LD A,(HL)
+        AND F_QUES
+        JR NZ,iq_yes
+        INC HL
+        DEC B
+        JR iq1
+iq_2:   LD HL,IBUF
+iq2:    LD A,(HL)
+        CP 0xFF
+        JR Z,iq_no
+        CP 0x0F             ; '?' ZX-kód
+        JR Z,iq_yes
+        INC HL
+        JR iq2
+iq_yes: LD A,1
+        JR iq_out
+iq_no:  XOR A
+iq_out: POP BC
+        POP DE
+        POP HL
+        RET
+
+; ------------------------------------------------------------------
+; find_seed — a bemenet első „tartalmas" tokene SEEDTOK-ba (0 ha nincs)
+find_seed:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        XOR A
+        LD (SEEDTOK),A
+        LD A,(TCNT)
+        LD B,A
+        LD HL,TFBUF
+fs1:    LD A,B
+        OR A
+        JR Z,fs_out
+        LD A,(HL)
+        AND F_FUNC+F_QUES+F_MOOD
+        JR NZ,fs_next
+        ; jó mag: a TBUF-ból a token
+        PUSH HL
+        LD HL,TBUF
+        LD A,(TCNT)
+        SUB B
+        LD E,A
+        LD D,0
+        ADD HL,DE
+        LD A,(HL)
+        CP 253
+        JR Z,fs_next         ; EOA nem mag
+        CP 255
+        JR Z,fs_next         ; END nem mag
+        ; a TOK_UNK (254) maradhat mag: a válasz visszhangolja a
+        ; szót (pt_unk literál), a séta utána természetesen kihal
+        LD (SEEDTOK),A
+        POP HL
+        JR fs_out
+fs_next:
+        INC HL
+        DEC B
+        JR fs1
+fs_out: POP BC
+        POP DE
+        POP HL
+        RET
+
+; gen_reply — a fő válaszválasztó (a fejlécet a main nyomtatja)
+gen_reply:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        PUSH AF
+        ; --- triggerek: rögzített válaszúTAK (tények, a kérés szerint)
+        LD HL,PAT_WHOMADE
+        CALL bufhas
+        OR A
+        JP NZ,gr_id1
+        LD HL,PAT_WHOCRE
+        CALL bufhas
+        OR A
+        JP NZ,gr_id1
+        LD HL,PAT_WHOBUI
+        CALL bufhas
+        OR A
+        JP NZ,gr_id1
+        LD HL,PAT_SAFAR
+        CALL bufhas
+        OR A
+        JP NZ,gr_id2
+        LD HL,PAT_SANDOR
+        CALL bufhas
+        OR A
+        JP NZ,gr_id2
+        LD HL,PAT_EMAIL
+        CALL bufhas
+        OR A
+        JP NZ,gr_id3
+        LD HL,PAT_EMAIL2
+        CALL bufhas
+        OR A
+        JP NZ,gr_id3
+        LD HL,PAT_LANG
+        CALL bufhas
+        OR A
+        JP NZ,gr_lang
+        LD HL,PAT_SWALLOW
+        CALL bufhas
+        OR A
+        JP NZ,gr_prov
+        LD HL,PAT_PROVERB
+        CALL bufhas
+        OR A
+        JP NZ,gr_prov
+        LD HL,PAT_HOWOLD
+        CALL bufhas
+        OR A
+        JP NZ,gr_age
+        LD HL,PAT_WHATDAY
+        CALL bufhas
+        OR A
+        JP NZ,gr_date
+        LD HL,PAT_DAYTODAY
+        CALL bufhas
+        OR A
+        JP NZ,gr_date
+        LD HL,PAT_WHATIME
+        CALL bufhas
+        OR A
+        JP NZ,gr_date
+        LD HL,PAT_HUMAN
+        CALL bufhas
+        OR A
+        JP NZ,gr_wish
+        LD HL,PAT_HEADH
+        CALL bufhas
+        OR A
+        JP NZ,gr_head
+        LD HL,PAT_MYHEAD
+        CALL bufhas
+        OR A
+        JP NZ,gr_head
+        LD HL,PAT_HELP
+        CALL bufhas
+        OR A
+        JP NZ,gr_help
+        ; --- generált utak
+        CALL find_seed
+        CALL find_mood
+        CP 0xFF
+        JP NZ,gr_mood
+        CALL find_prof
+        OR A
+        JP NZ,gr_sass
+        CALL is_question
+        OR A
+        JP NZ,gr_quest
+        JR gr_stat
+        ; rögzített válaszok:
+gr_id1: LD A,0
+        CALL fixed_print
+        JR gr_out
+gr_id2: LD A,1
+        CALL fixed_print
+        CALL con_nl
+        LD A,2
+        CALL fixed_print
+        LD A,0x80           ; inverz szóköz-alapú „kukac": inverz 0
+        CALL con_putc
+        LD A,3
+        CALL fixed_print
+        JR gr_out
+gr_id3: LD A,2
+        CALL fixed_print
+        LD A,0x80
+        CALL con_putc
+        LD A,3
+        CALL fixed_print
+        JR gr_out
+gr_lang: LD A,4
+        CALL fixed_print
+        JR gr_out
+gr_prov: LD A,5
+        CALL fixed_print
+        JR gr_out
+gr_age: CALL age_reply
+        JR gr_out
+gr_date: CALL date_reply
+        JR gr_out
+gr_wish: CALL wish_gen
+        JR gr_out
+gr_head: CALL head_reply
+        JR gr_out
+gr_help: LD A,6
+        CALL fixed_print
+        JR gr_out
+        ; generált utak:
+gr_mood: CALL mood_gen
+        JR gr_out
+gr_sass: CALL sass_gen
+        JR gr_out
+gr_quest:
+        LD A,15             ; "WHAT ABOUT"
+        CALL fixed_print
+        XOR A
+        CALL con_putc       ; szóköz
+        XOR A
+        LD (TERMCH),A       ; '.'
+        CALL gen_walk
+        CALL render_reply
+        JR gr_out
+gr_stat: XOR A
+        LD (TERMCH),A
+        CALL gen_walk
+        CALL render_reply
+gr_out: CALL con_nl
+        POP AF
+        POP BC
+        POP DE
+        POP HL
+        RET
+
+; ------------------------------------------------------------------
+; wish_pick — B = csoport-alap offszet a WISH-en belül, C = bejegyzés
+; hossza tokenben; nyomtat egy véletlenszerű bejegyzést
+wp_b:   DB 0
+wp_c:   DB 0
+wp_r:   DB 0
+wish_pick:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        PUSH AF
+        LD A,B
+        LD (wp_b),A
+        LD A,C
+        LD (wp_c),A
+        CALL rng_next
+        AND 7
+        LD (wp_r),A
+        LD HL,(KB_WISH)
+        LD A,(wp_b)
+        LD E,A
+        LD D,0
+        ADD HL,DE
+        ; + r*C
+        LD A,(wp_r)
+        LD B,A
+        LD A,(wp_c)
+        LD C,A
+        XOR A
+wp1:    LD D,B
+        OR D
+        JR Z,wp2
+        ADD A,C
+        DEC B
+        JR wp1
+wp2:    LD E,A
+        LD D,0
+        ADD HL,DE
+        LD A,(wp_c)
+        LD B,A
+wp3:    LD A,(HL)
+        OR A
+        JR Z,wp4
+        CALL print_token
+wp4:    INC HL
+        DJNZ wp3
+        POP AF
+        POP BC
+        POP DE
+        POP HL
+        RET
+
+; ------------------------------------------------------------------
+; wish_gen — „ha egy napig ember lennék": 4 medencéből összeállítás
+; (minden hívásra más kombináció)
+wish_gen:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        PUSH AF
+        LD A,10             ; "IF I WERE HUMAN FOR ONE DAY I WOULD"
+        CALL fixed_print
+        XOR A
+        LD B,A              ; igék: offszet 0, 1 token
+        LD C,1
+        CALL wish_pick
+        LD B,8              ; tárgyak: offszet 8, 2 token
+        LD C,2
+        CALL wish_pick
+        LD B,24             ; helyek: offszet 24, 2 token
+        LD C,2
+        CALL wish_pick
+        LD B,40             ; idők: offszet 40, 2 token
+        LD C,2
+        CALL wish_pick
+        LD A,0x1B           ; '.'
+        CALL con_putc
+        POP AF
+        POP BC
+        POP DE
+        POP HL
+        RET
+
+; ------------------------------------------------------------------
+; mood_gen — hangulat-visszhang: medence-bejegyzés + rövid bigram-séta
+mg_kind: DB 0
+mg_r:   DB 0
+mood_gen:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        PUSH AF
+        CALL find_mood
+        LD (mg_kind),A
+        CALL rng_next
+        AND 3
+        CP 3
+        JR NZ,mg0
+        XOR A
+mg0:    LD (mg_r),A
+        ; offszet = 6*kind + 2*r a MOODS-en belül
+        LD A,(mg_kind)
+        ADD A,A
+        LD C,A              ; 2*kind
+        ADD A,A             ; 4*kind
+        ADD A,C             ; 6*kind
+        LD (mg_o1),A
+        LD A,(mg_r)
+        ADD A,A             ; 2*r
+        LD (mg_o2),A
+        LD HL,(KB_MOODS)
+        LD A,(mg_o1)
+        LD E,A
+        LD D,0
+        ADD HL,DE
+        LD A,(mg_o2)
+        LD E,A
+        LD D,0
+        ADD HL,DE
+        LD B,2
+mg1:    LD A,(HL)
+        OR A
+        JR Z,mg2
+        CALL print_token
+mg2:    INC HL
+        DJNZ mg1
+        XOR A
+        LD (TERMCH),A
+        CALL gen_walk
+        CALL render_reply
+        POP AF
+        POP BC
+        POP DE
+        POP HL
+        RET
+mg_o1:  DB 0
+mg_o2:  DB 0
+
+; ------------------------------------------------------------------
+; sass_gen — trágárságra játékos (nem trágár) visszhang
+sass_gen:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        PUSH AF
+        CALL rng_next
+        AND 3
+        LD C,A
+        ADD A,A
+        ADD A,C             ; 3*r
+        LD E,A
+        LD D,0
+        LD HL,(KB_SASS)
+        ADD HL,DE
+        LD B,3
+sg1:    LD A,(HL)
+        OR A
+        JR Z,sg2
+        CALL print_token
+sg2:    INC HL
+        DJNZ sg1
+        LD A,0x1B
+        CALL con_putc
+        POP AF
+        POP BC
+        POP DE
+        POP HL
+        RET
+
+; ------------------------------------------------------------------
+; head_reply — „fáj a fejem": emlékbit + esemény + együttérzés + séta
+head_reply:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        PUSH AF
+        LD A,(STBUF+ST_BITS)
+        OR BIT_HEADHURT
+        LD (STBUF+ST_BITS),A
+        LD B,BIT_HEADHURT
+        LD A,1
+        CALL event_set
+        CALL state_save
+        LD A,11             ; "YOUR HEAD... I WILL ASK ABOUT IT."
+        CALL fixed_print
+        XOR A
+        LD (TERMCH),A
+        CALL gen_walk
+        CALL render_reply
+        POP AF
+        POP BC
+        POP DE
+        POP HL
+        RET
+
+; --- minták (a DZ a szóközt 0x00-ra, a betűket ZX-kódra képezi)
+PAT_WHOMADE:  DZ "WHO MADE"
+              DB 0xFF
+PAT_WHOCRE:   DZ "WHO CREATE"
+              DB 0xFF
+PAT_WHOBUI:   DZ "WHO BUILT"
+              DB 0xFF
+PAT_SAFAR:    DZ "SAFAR"
+              DB 0xFF
+PAT_SANDOR:   DZ "SANDOR"
+              DB 0xFF
+PAT_EMAIL:    DZ "E-MAIL"
+              DB 0xFF
+PAT_EMAIL2:   DZ "EMAIL"
+              DB 0xFF
+PAT_LANG:     DZ "LANGUAGE"
+              DB 0xFF
+PAT_SWALLOW:  DZ "SWALLOW"
+              DB 0xFF
+PAT_PROVERB:  DZ "PROVERB"
+              DB 0xFF
+PAT_HOWOLD:   DZ "HOW OLD"
+              DB 0xFF
+PAT_WHATDAY:  DZ "WHAT DAY"
+              DB 0xFF
+PAT_DAYTODAY: DZ "DAY TODAY"
+              DB 0xFF
+PAT_WHATIME:  DZ "WHAT TIME"
+              DB 0xFF
+PAT_HUMAN:    DZ "HUMAN"
+              DB 0xFF
+PAT_HEADH:    DZ "HEAD HURTS"
+              DB 0xFF
+PAT_MYHEAD:   DZ "MY HEAD"
+              DB 0xFF
+PAT_HELP:     DZ "HELP"
+              DB 0xFF
+PAT_HAHA:     DZ "HAHA"
+              DB 0xFF
+PAT_HIHI:     DZ "HIHI"
+              DB 0xFF
+PAT_HEHE:     DZ "HEHE"
+              DB 0xFF
+PAT_WOWM:     DZ "WOW"
+              DB 0xFF
+PAT_OOH:      DZ "OOH"
+              DB 0xFF
+PAT_SADFACE:  DZ ":("
+              DB 0xFF
+PAT_NOOO:     DZ "NOOO"
+              DB 0xFF

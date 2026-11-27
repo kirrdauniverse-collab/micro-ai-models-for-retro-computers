@@ -1,0 +1,288 @@
+; ====================================================================
+; screen.z80 — biztonságos D_FILE-kezelés (putcell-őr, konzol, görgetés)
+;
+; SZABÁLY: a D_FILE-ba csak 0x00-0x3F (glyph), 0x80-0xBF (inverz) és a
+; sorvégi 0x76 kerülhet. A putcell maszkolással garantálja (a bit 6
+; törlése = a 0x76/0x77-es ütközés, vagyis a „futó fekete csíkok"
+; kizárása). A szimulátor emellett minden írást őrszemként ellenőriz.
+;
+; Konvenció: minden rutin menti a regisztereit (kivéve a dokumentált
+; kimeneteket); a kurzor: CRT_ROW / CRT_COL / INVFLG (a main.z80
+; változó-blokkjában).
+; ====================================================================
+
+; ------------------------------------------------------------------
+; rowcell — A=sor (0..23) -> HL = DFILE+1+33*sor; töri: A, BC, HL
+rowcell:
+        LD L,A
+        LD H,0
+        ADD HL,HL
+        ADD HL,HL
+        ADD HL,HL
+        ADD HL,HL
+        ADD HL,HL       ; 32*sor
+        LD C,A
+        LD B,0
+        ADD HL,BC       ; 33*sor
+        LD BC,DFILE+1
+        ADD HL,BC
+        RET
+
+; ------------------------------------------------------------------
+; putcell — HL=cím, A=érték (bit 7 = inverz): mindig legális bájt
+putcell:
+        PUSH AF
+        AND 0x3F
+        LD (HL),A
+        POP AF
+        AND 0x80
+        RET Z
+        SET 7,(HL)
+        RES 6,(HL)
+        RET
+
+; ------------------------------------------------------------------
+; cellwrite — A=sor, C=oszlop, B=érték -> biztonságos cellaírás
+cw_b:   DB 0
+cw_c:   DB 0
+cw_v:   DB 0
+cellwrite:
+        PUSH AF
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        LD (cw_b),A
+        LD A,C
+        LD (cw_c),A
+        LD A,B
+        LD (cw_v),A
+        LD A,(cw_b)
+        CALL rowcell
+        LD A,(cw_c)
+        LD E,A
+        LD D,0
+        ADD HL,DE
+        LD A,(cw_v)
+        CALL putcell
+        POP BC
+        POP DE
+        POP HL
+        POP AF
+        RET
+
+; ------------------------------------------------------------------
+; con_putc — A=ZX-kód (bit 7 = inverz) a kurzorhoz
+con_putc:
+        PUSH AF
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        LD (cp_ch),A
+        LD A,(CRT_ROW)
+        CALL rowcell
+        LD A,(CRT_COL)        ; + oszlop a sor-alapra
+        LD E,A
+        LD D,0
+        ADD HL,DE
+        LD A,(cp_ch)
+        CALL putcell
+        LD A,(CRT_COL)
+        INC A
+        LD (CRT_COL),A
+        CP 32
+        CALL NC,con_nl
+        POP BC
+        POP DE
+        POP HL
+        POP AF
+        RET
+cp_ch:  DB 0
+
+; ------------------------------------------------------------------
+; con_nl — új konzolsor (görgetéssel); a CRT_COL-t nullázza
+con_nl:
+        PUSH AF
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        LD A,(CRT_ROW)
+        INC A
+        CP ROW_CHATL+1
+        JR C,cn_ok
+        CALL scroll_chat
+        LD A,ROW_CHATL
+cn_ok:  LD (CRT_ROW),A
+        XOR A
+        LD (CRT_COL),A
+        POP BC
+        POP DE
+        POP HL
+        POP AF
+        RET
+
+; ------------------------------------------------------------------
+; scroll_chat — a konzolsorok (4..17) eggyel felfelé; az alsó törlődik
+; A LDIR a D_FILE-ON BELÜL másol már legális bájtokat (cellák+sorvég).
+sc_r:   DB 0
+scroll_chat:
+        PUSH AF
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        LD A,ROW_CHAT
+        LD (sc_r),A
+scr1:   LD A,(sc_r)
+        CALL rowcell
+        PUSH HL
+        POP DE           ; DE = cél
+        LD A,(sc_r)
+        INC A
+        CALL rowcell     ; HL = forrás
+        LD BC,33
+        LDIR
+        LD A,(sc_r)
+        INC A
+        LD (sc_r),A
+        CP ROW_CHATL
+        JR C,scr1
+        LD A,ROW_CHATL
+        CALL rowcell
+        LD B,32
+        XOR A
+scr2:   LD (HL),A
+        INC HL
+        DJNZ scr2
+        POP BC
+        POP DE
+        POP HL
+        POP AF
+        RET
+
+; ------------------------------------------------------------------
+; con_print — HL = 0-val zárt ZX-kódsorozat; az INVFLG adja az inverzet
+con_print:
+        PUSH AF
+        PUSH HL
+        PUSH DE
+        PUSH BC
+cpr1:   LD A,(HL)
+        CP 0xFF
+        JR Z,cpr2
+        LD B,A
+        LD A,(INVFLG)
+        OR B
+        CALL con_putc
+        INC HL
+        JR cpr1
+cpr2:   POP BC
+        POP DE
+        POP HL
+        POP AF
+        RET
+
+; ------------------------------------------------------------------
+; con_goto — A=sor, C=oszlop
+con_goto:
+        LD (CRT_ROW),A
+        LD A,C
+        LD (CRT_COL),A
+        RET
+
+; ------------------------------------------------------------------
+; con_putdig — A = 0..99 -> két számjegy a kurzorra
+pd_lo:  DB 0
+con_putdig:
+        PUSH AF
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        LD B,A
+        LD C,0
+pd1:    LD A,B
+        SUB 10
+        JR C,pd2
+        LD B,A
+        INC C
+        JR pd1
+pd2:    LD A,B
+        ADD A,0x1C
+        LD (pd_lo),A
+        LD A,C
+        ADD A,0x1C
+        CALL con_putc
+        LD A,(pd_lo)
+        CALL con_putc
+        POP BC
+        POP DE
+        POP HL
+        POP AF
+        RET
+
+; ------------------------------------------------------------------
+; clrrow — A=sor: szóközökkel (a sorvéget 0x76-et meghagyja)
+clrrow:
+        PUSH AF
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        PUSH AF
+        CALL rowcell
+        LD B,32
+        XOR A
+clw1:   LD (HL),A
+        INC HL
+        DJNZ clw1
+        POP AF
+        POP BC
+        POP DE
+        POP HL
+        POP AF
+        RET
+
+; ------------------------------------------------------------------
+; think_bar — A=fázis (0..3): a gondolkodás-sáv (18. sor) animálása
+; „THINKING" + a fázissal hosszabbodó inverz blokksor
+think_bar:
+        PUSH AF
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        ; a konzolkurzor mentése — a sáv a 18. sorba ugrik, de a
+        ; későbbi nyomtatások a konzol pozícióján folytatódnak!
+        LD A,(CRT_ROW)
+        LD (tb_sr),A
+        LD A,(CRT_COL)
+        LD (tb_sc),A
+        LD B,A           ; fázis
+        LD A,ROW_THINK
+        CALL clrrow
+        LD A,ROW_THINK
+        LD C,0
+        CALL con_goto
+        LD A,0x80
+        LD (INVFLG),A
+        LD HL,TXT_THINK
+        CALL con_print
+        XOR A
+        LD (INVFLG),A
+        LD A,B           ; fázis
+        ADD A,2          ; blokkszám = fázis+2
+        LD B,A
+        LD A,0x80        ; inverz szóköz
+tb1:    CALL con_putc
+        DJNZ tb1
+        ; konzolkurzor visszaállítása
+        LD A,(tb_sr)
+        LD (CRT_ROW),A
+        LD A,(tb_sc)
+        LD (CRT_COL),A
+        POP BC
+        POP DE
+        POP HL
+        POP AF
+        RET
+tb_sr:  DB 0
+tb_sc:  DB 0
+TXT_THINK:
+        DZ "THINKING"
+        DB 0xFF

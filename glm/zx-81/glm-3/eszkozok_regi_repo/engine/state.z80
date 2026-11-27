@@ -1,0 +1,595 @@
+; ====================================================================
+; state.z80 — tartós állapot: 6 bites D_FILE-csomagolás, profil-bekérés,
+; véletlenszám, óra; tanult-zóna és emlékesemény-kezelés
+;
+; A D_FILE 0-2. sora 96 cella = 72 bájt hasznos teher (3 bájt -> 4 cella,
+; 6 bit/cella -> a cellák értéke MINDIG 0x00-0x3F: a tárolás önmagában
+; nem állíthat elő tiltott D_FILE-kódot — a „fekete csík" kizárva).
+; ====================================================================
+
+; --- a csomagolt 72 bájt mezői (STBUF, csomagolás ELŐTT, nyers bájtok)
+ST_MAGIC EQU 0            ; 'P','K','1'
+ST_VER   EQU 3
+ST_NAME  EQU 4            ; 8 ZX-karakterkód
+ST_BITS  EQU 12
+ST_BIRTH EQU 13           ; év - 1900
+ST_DAY0  EQU 14           ; u16 LE: napok 2000-01-01 óta
+ST_HOUR  EQU 16
+ST_MINU  EQU 17
+ST_TEMP  EQU 18           ; 1..4
+ST_REAS  EQU 19           ; 0/1
+ST_TOPIC EQU 20
+ST_PEND  EQU 21           ; 0/1/2 (nincs/LOAD/SAVE)
+ST_CLKM  EQU 22           ; u16 LE: percek a profil felvétele óta
+ST_RINGN EQU 24
+ST_LEARN EQU 25
+ST_RNGS  EQU 26           ; u16 LE: RNG-mag
+ST_EV    EQU 32           ; 8 x 2: [bit-index][nap-kor a profilhoz]
+ST_LEN   EQU 72
+ST_XOR   EQU 71
+
+; --- tanult-zóna (LEARN): "TL1" + db + 32 x 10 bájt
+LZ_MAGIC EQU LEARN
+LZ_N     EQU LEARN+2
+LZ_REC   EQU LEARN+3       ; bejegyzés: [7 kód][előző-token][találat]
+LZ_MAX   EQU 32
+LZ_RECSZ EQU 10
+
+; ------------------------------------------------------------------
+; pack6 — HL = 72 forrásbájt, DE = 96 cél-cella (D_FILE sorok 0-2)
+pack6:
+        PUSH AF
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        LD B,24
+pk6a:   LD A,(HL)
+        AND 0x3F
+        LD (DE),A
+        INC DE
+        LD A,(HL)
+        RLCA
+        RLCA
+        AND 0x03           ; b0 >> 6
+        LD C,A
+        INC HL
+        LD A,(HL)          ; b1
+        AND 0x0F
+        RLCA
+        RLCA
+        AND 0x3C           ; (b1 & 0xF) << 2
+        OR C
+        LD (DE),A
+        INC DE
+        LD A,(HL)          ; b1
+        RRCA
+        RRCA
+        RRCA
+        RRCA
+        AND 0x0F           ; b1 >> 4
+        LD C,A
+        INC HL
+        LD A,(HL)          ; b2
+        AND 0x03
+        RLCA
+        RLCA
+        RLCA
+        RLCA
+        AND 0x30           ; (b2 & 3) << 4
+        OR C
+        LD (DE),A
+        INC DE
+        LD A,(HL)          ; b2
+        RRCA
+        RRCA
+        AND 0x3F           ; b2 >> 2
+        LD (DE),A
+        INC DE
+        INC HL
+        DJNZ pk6a
+        POP BC
+        POP DE
+        POP HL
+        POP AF
+        RET
+
+; ------------------------------------------------------------------
+; unpack6 — HL = 96 cella, DE = 72 célbájt
+unpack6:
+        PUSH AF
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        LD B,24
+up6a:   LD A,(HL)          ; c0
+        LD C,A
+        INC HL
+        LD A,(HL)          ; c1
+        AND 0x03
+        RLCA
+        RLCA
+        RLCA
+        RLCA
+        RLCA
+        RLCA
+        AND 0xC0           ; (c1 & 3) << 6
+        OR C
+        LD (DE),A          ; b0
+        INC DE
+        LD A,(HL)          ; c1
+        RRCA
+        RRCA
+        AND 0x3F           ; c1 >> 2
+        LD C,A
+        INC HL
+        LD A,(HL)          ; c2
+        AND 0x0F
+        RLCA
+        RLCA
+        RLCA
+        RLCA
+        AND 0xF0           ; (c2 & 0xF) << 4
+        OR C
+        LD (DE),A          ; b1
+        INC DE
+        LD A,(HL)          ; c2
+        RRCA
+        RRCA
+        RRCA
+        RRCA
+        AND 0x03           ; c2 >> 4
+        LD C,A
+        INC HL
+        LD A,(HL)          ; c3
+        RLCA
+        RLCA
+        AND 0xFC           ; c3 << 2
+        OR C
+        LD (DE),A          ; b2
+        INC DE
+        INC HL
+        DJNZ up6a
+        POP BC
+        POP DE
+        POP HL
+        POP AF
+        RET
+
+; ------------------------------------------------------------------
+; state_save — STBUF (72 B) XOR-zással -> a TARTÓS ZÓNA (STZE, RAMTOP
+; fölött: a NEW és a ROM-szerkesztő sose éri el; a 6 bites D_FILE-
+; csomagolás a jövőbeli képernyő-scratch funkcióként maradt meg lentebb)
+state_save:
+        PUSH AF
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        XOR A
+        LD B,ST_LEN-1
+        LD HL,STBUF
+ss1:    XOR (HL)
+        INC HL
+        DJNZ ss1
+        LD (HL),A
+        LD HL,STBUF
+        LD DE,STZE
+        LD BC,ST_LEN
+        LDIR
+        POP BC
+        POP DE
+        POP HL
+        POP AF
+        RET
+
+; ------------------------------------------------------------------
+; state_load — a tartós zóna -> STBUF; A = 1 ha a mágia és az XOR jó
+state_load:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        LD HL,STZE
+        LD DE,STBUF
+        LD BC,ST_LEN
+        LDIR
+        CALL stbuf_check
+        POP BC
+        POP DE
+        POP HL
+        RET
+
+; ------------------------------------------------------------------
+; stbuf_check — A = 1 ha a STBUF mágia (P,K,1) és az XOR rendben
+stbuf_check:
+        PUSH HL
+        PUSH BC
+        LD A,(STBUF)
+        CP 'P'
+        JR NZ,sb_bad
+        LD A,(STBUF+1)
+        CP 'K'
+        JR NZ,sb_bad
+        LD A,(STBUF+2)
+        CP '1'
+        JR NZ,sb_bad
+        XOR A
+        LD B,ST_LEN-1
+        LD HL,STBUF
+sb1:    XOR (HL)
+        INC HL
+        DJNZ sb1
+        CP (HL)
+        JR NZ,sb_bad
+        JR sb_ok
+sb_bad: XOR A
+        JR sb_out
+sb_ok:  LD A,1
+sb_out: POP BC
+        POP HL
+        RET
+
+; ------------------------------------------------------------------
+; rng_next — A = pszeudo-véletlen bájt (16 bites Galois-LFSR)
+rng_next:
+        PUSH HL
+        PUSH BC
+        LD HL,(RNGSEED)
+        LD A,L
+        SRL L
+        RR H               ; s >>= 1
+        AND 1
+        JR Z,rn1
+        LD A,H
+        XOR 0xB4
+        LD H,A
+rn1:    LD (RNGSEED),HL
+        LD A,H
+        XOR L
+        POP BC
+        POP HL
+        RET
+
+; ------------------------------------------------------------------
+; clk_tick — a FRAMES-deltából percek (CLOCKMIN); 3000 frame = 1 perc
+; (50 Hz; a hívó sűrűbben hívja, mint 65536 frame = 21,8 perc)
+clk_tick:
+        PUSH AF
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        LD HL,(FRAMESV)
+        LD DE,(LASTFR)
+        LD (FRNOW),HL
+        AND A
+        SBC HL,DE          ; HL = delta (mod 2^16)
+        LD (CTD),HL
+        LD HL,(CLKSUB)
+        LD DE,(CTD)
+        ADD HL,DE
+        LD DE,(CLOCKMIN)
+ct1:    LD A,H
+        CP 0x0B
+        JR C,ct2
+        JR NZ,ct3
+        LD A,L
+        CP 0xB8
+        JR C,ct2
+ct3:    LD BC,3000
+        OR A
+        SBC HL,BC
+        INC DE
+        JR ct1
+ct2:    LD (CLKSUB),HL
+        LD (CLOCKMIN),DE
+        POP BC
+        POP DE
+        POP HL
+        POP AF
+        RET
+
+; ------------------------------------------------------------------
+; learn_find — HL = szó címe (0-val zárt, max 7 kód);
+; kimenet: A = index (0xFF: nincs)
+lf_w:   DW 0
+lf_i:   DB 0
+lf_n:   DB 0
+learn_find:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        LD (lf_w),HL
+        LD A,(LZ_N)
+        OR A
+        JR Z,lf_no
+        LD (lf_n),A
+        XOR A
+        LD (lf_i),A
+        LD DE,LZ_REC
+lf1:    LD HL,(lf_w)
+        LD B,7
+lf2:    LD A,(DE)
+        CP (HL)
+        JR NZ,lf_next
+        OR A
+        JR Z,lf_found
+        INC DE
+        INC HL
+        DJNZ lf2
+lf_found:
+        LD A,(lf_i)
+        JR lf_out
+lf_next:
+        LD A,10
+        ADD E
+        LD E,A
+        JR NC,lf3
+        INC D
+lf3:    LD A,(lf_i)
+        INC A
+        LD (lf_i),A
+        LD C,A            ; C = új index
+        LD A,(lf_n)
+        LD B,A            ; B = db
+        LD A,C
+        CP B              ; carry = index < db
+        JR C,lf1
+lf_no:  LD A,0xFF
+lf_out: POP BC
+        POP DE
+        POP HL
+        RET
+
+; ------------------------------------------------------------------
+; mul10 — A = A*10 (bemenet 0..25)
+mul10:
+        LD B,A
+        ADD A,A            ; 2A
+        LD C,A
+        ADD A,A            ; 4A
+        ADD A,A            ; 8A
+        ADD A,C            ; 10A
+        RET
+
+; ------------------------------------------------------------------
+; la_addr — A = index -> DE = LZ_REC + index*10 (töri: A, HL)
+la_addr:
+        PUSH BC
+        CALL mul10
+        LD E,A
+        LD D,0
+        LD HL,LZ_REC
+        ADD HL,DE
+        EX DE,HL
+        POP BC
+        RET
+
+; ------------------------------------------------------------------
+; learn_add — HL = szó (0-val zárt, max 7 kód), B = előző-token;
+; A = 1 ha felvéve / frissítve (a találat-szám nő)
+la_idx: DB 0
+la_tok: DB 0
+learn_add:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        PUSH AF
+        LD A,B
+        LD (la_tok),A
+        PUSH HL
+        CALL learn_find
+        LD (la_idx),A
+        POP HL
+        CP 0xFF
+        JR Z,la_new
+        ; meglévő bejegyzés: találat-szám növelése (a 9. bájt)
+        LD A,(la_idx)
+        CALL la_addr
+        INC DE
+        INC DE
+        INC DE
+        INC DE
+        INC DE
+        INC DE
+        INC DE
+        INC DE
+        LD A,(DE)
+        INC A
+        JR NZ,la_hit
+        DEC A
+la_hit: LD (DE),A
+        JR la_ok
+la_new: LD A,(LZ_N)
+        CP LZ_MAX
+        JR NC,la_full
+        INC A
+        LD (LZ_N),A
+        DEC A
+        LD (la_idx),A
+        CALL la_addr        ; DE = új bejegyzés
+        XOR A
+        LD B,LZ_RECSZ
+la_z:   LD (DE),A
+        INC DE
+        DJNZ la_z
+        ; szó bemásolása
+        LD A,(la_idx)
+        CALL la_addr
+        LD B,7
+la_cp:  LD A,(HL)
+        OR A
+        JR Z,la_cpd
+        LD (DE),A
+        INC HL
+        INC DE
+        DJNZ la_cp
+la_cpd: LD A,(la_idx)
+        CALL la_addr
+        INC DE
+        INC DE
+        INC DE
+        INC DE
+        INC DE
+        INC DE
+        INC DE
+        LD A,(la_tok)
+        LD (DE),A           ; előző-token (8. bájt)
+        INC DE
+        LD A,1
+        LD (DE),A           ; találat (9. bájt)
+la_ok:  POP AF
+        POP BC
+        POP DE
+        POP HL
+        LD A,1
+        RET
+la_full:
+        POP AF
+        POP BC
+        POP DE
+        POP HL
+        XOR A
+        RET
+
+; ------------------------------------------------------------------
+; event_set — B = bit-index (0 = üres hely), A = 0: törlés, egyéb:
+; felvétel/frissítés. A kor-cellába a DAYNO-STDAY0 eltérés megy (0..127).
+; (A tárolt zónát a state_save csomagolja ki a D_FILE-be; a hívó után
+;  hívja.) Töri: A, BC, DE, HL.
+ev_i:   DB 0
+ev_m:   DB 0
+ev_c:   DB 0
+event_set:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        PUSH AF
+        LD A,B
+        LD (ev_i),A
+        LD (ev_m),A
+        ; szabad/azonos bejegyzés keresése (a bit-index 0 = üres)
+        LD HL,STBUF+ST_EV
+        LD B,8
+        LD C,0
+evs1:   LD A,(HL)
+        OR A
+        JR Z,evs_found     ; üres hely
+        LD D,A
+        LD A,(ev_i)
+        CP D
+        JR Z,evs_found     ; ugyanaz a bit -> frissítés
+        INC HL
+        INC HL
+        INC C
+        DJNZ evs1
+        LD C,0             ; betelt: az első helyet írjuk felül
+evs_found:
+        ; a 2 bájtos bejegyzés címe = STBUF+ST_EV + 2*C
+        LD A,C
+        ADD A,A
+        LD E,A
+        LD D,0
+        LD HL,STBUF+ST_EV
+        ADD HL,DE
+        LD A,(ev_m)
+        OR A
+        JR Z,evs_clear
+        LD A,(ev_i)
+        LD (HL),A
+        INC HL
+        PUSH HL
+        LD HL,(STDAY0)
+        PUSH HL
+        LD HL,(DAYNO)
+        POP DE             ; DE = STDAY0
+        OR A
+        SBC HL,DE          ; HL = DAYNO - STDAY0 (0..)
+        LD A,L
+        AND 0x7F           ; kor-cap 127 nap
+        POP HL
+        LD (HL),A
+        JR evs_out
+evs_clear:
+        LD (HL),0
+        INC HL
+        LD (HL),0
+evs_out:
+        POP AF
+        POP BC
+        POP DE
+        POP HL
+        RET
+
+; ------------------------------------------------------------------
+; event_age — asession-induláskor: minden esemény kora += eltelt napok
+; (a CLKDELTA percben; a hívó számolja ki és B-ben adja)
+event_age:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        PUSH AF
+        LD (ea_d),A        ; eltelt napok (0..127)
+        LD HL,STBUF+ST_EV
+        LD B,8
+        LD A,(ea_d)
+        LD D,A             ; D = napok
+eag1:   LD A,(HL)
+        OR A
+        JR Z,eag2
+        INC HL
+        LD A,(HL)
+        ADD A,D
+        JR NC,eag3
+        LD A,127
+eag3:   CP 127
+        JR C,eag4
+        LD A,127
+eag4:   LD (HL),A
+        JR eag5
+eag2:   INC HL
+eag5:   INC HL
+        DJNZ eag1
+        POP AF
+        POP BC
+        POP DE
+        POP HL
+        RET
+ea_d:   DB 0
+
+; ------------------------------------------------------------------
+; REM-farok: az 1-es sor REM-jének végén 72 B (a builder a TAILSLOT DW-be
+; patcheli a címet) — a /save így viszi kazettára a tartós állapotot;
+; újratöltés után a farokból áll helyre, ha a RAM-zóna üres
+TAILSLOT: DW 0xDEAD
+         DB 0xB2, 0x5C          ; bűnjel-pár a buildernek
+
+; ------------------------------------------------------------------
+; tail_save — STBUF -> a REM-farok (kazettán visszatér a /save-dzsel)
+tail_save:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        PUSH AF
+        LD HL,(TAILSLOT)
+        LD DE,STBUF
+        LD BC,ST_LEN
+        LDIR
+        POP AF
+        POP BC
+        POP DE
+        POP HL
+        RET
+
+; ------------------------------------------------------------------
+; tail_load — farok -> STBUF; A = 1 ha a mágia jó
+tail_load:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        LD HL,(TAILSLOT)
+        LD DE,STBUF
+        LD BC,ST_LEN
+        LDIR
+        CALL stbuf_check
+        POP BC
+        POP DE
+        POP HL
+        RET

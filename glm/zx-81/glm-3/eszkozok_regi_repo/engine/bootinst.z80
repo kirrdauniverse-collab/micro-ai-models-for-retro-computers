@@ -1,0 +1,59 @@
+; ====================================================================
+; bootinst.z80 — a PICOBOOT blokk ML-telepítője (az 1-es sor REM-jében,
+; org 0x4082 — a BASIC `RAND USR 16514` hívja)
+;
+; Feladat (docs/02 §11.3):
+;   1) határbájt 0xFF a 0x715F-re — a NEW RAM-CHECK sétájának
+;      determinisztikus megállítója (a bájt a NEW INITIAL-je így is
+;      0x3E-re írja felül: áldozatbájt),
+;   2) üres D_FILE a 0x7B00-ra (793 B, kizárólag legális cellák:
+;      0x00 szóközök + 0x76 sorvégek — a „fekete csík" kizárva),
+;   3) VARS 0x80 jelző a 0x7E19-re,
+;   4) a tartós zóna [0x7160, 0x7A60) nullázása,
+;   5) RAMTOP := 0x715F (a 0x4004-es rendszer-változó — a ROM NEW-ja
+;      ezt olvassa: LD BC,(0x4004); a NEW RAM-FILL-je így csak
+;      0x715E-ig törlöl, a D_FILE (0x7B00) és a tartós zóna védett!).
+; Utána RET a BASIC-hez, amely NEW-t hajt végre (a ROM átrendezi a
+; világot a védelem alatt), majd a felhasználó LOAD ""-t üt.
+; ====================================================================
+        ORG 0x4082
+
+install:
+        ; 1) határbájt
+        LD HL,0x715F
+        LD (HL),0xFF
+        ; 2) üres D_FILE: 0x76 + 24*(32 szóköz + 0x76)
+        LD HL,0x7B00
+        LD (HL),0x76
+        INC HL
+        LD B,24
+bi_row: PUSH BC
+        LD B,32
+        XOR A
+bi_cl:  LD (HL),A
+        INC HL
+        DJNZ bi_cl
+        LD (HL),0x76
+        INC HL
+        POP BC
+        DJNZ bi_row
+        ; 3) VARS 0x80 jelző
+        LD HL,0x7E19
+        LD (HL),0x80
+        ; 4) tartós zóna nullázása: 0x900 = 2304 bájt
+        LD HL,0x7160
+        LD BC,0x0900
+        XOR A
+bi_z:   LD (HL),A
+        INC HL
+        DEC C
+        JR NZ,bi_z
+        DEC B
+        JR NZ,bi_z
+        ; 5) RAMTOP := 0x715F — a 0x4004 a VALÓDI RAMTOP (a korábbi
+        ;    0x4026-os cím a LAST-K volt: a NEW emiatt a teljes 16K-t
+        ;    törölte 0x02-vel — a telepített D_FILE is elpusztult,
+        ;    a betöltés után fehér képernyő maradt!)
+        LD HL,0x715F
+        LD (0x4004),HL
+        RET

@@ -1,0 +1,71 @@
+GLM Pico AI v0.8.0 — DOKUMENTÁCIÓ
+==================================
+Ez a kazetta a v0.6.5 javított változata. A gépi kód (a C-motor és
+a tudás-blobok) bájtról bájtra azonos a v0.6.5-tel; csak a
+BASIC-programok határoló bájtjait és a CH_ADD rendszer-változót
+javítottam blokkonként. (Miért volt szükség rá: l. a
+GLM_PicoAI_v0.8.0_valtozasnaplo.txt-t — a program-vég 0x80 jelző
+helyett 0x76 állt minden blokkban, ami a lánc-betöltés után a
+modell-blobot "BASIC-sorként" olvasta volna el: grafikus karakterek,
+fehér kép, PC 004x.)
+
+MI VAN A KAZETTÁN
+-----------------
+15 blokk, EightyOne .T81 formában:
+  RTBOOT01   15897 B  boot: logó + útmutató + profilkérdések +
+                      "tekerd a kazettát az RTBASE16 blokkra" + ENTER
+  RTBASE16   15093 B  a BASE tudás, magával a motorral
+  RT-TUDOM, RT-MAGYR, RT-HOBBI, RT-EGESZ, RT-MUNKA, RT-MUVES,
+  RT-TANUL, RT-IRODA, RT-FILME, RT-PROGI, RT-ASTRO, RT-ASCII,
+  RT-VERSE
+             mind 15093 B, témánként egy tudásblokk
+A blokk felépítése (bájtszinten ellenőrizve mind a 15-ön):
+  1 REM <gépi kód>            (a gépi kód CSAK a REM után áll)
+  2 IF USR 16514 = 1 THEN LOAD "..."   (a lánc-betöltés)
+  3 IF USR 16514 = 2 THEN SAVE "..."   (az elmentett emlékek)
+  [0x80 program-vég jelző] [modell-blob "RTLM"...] [0x80 VARS-jelző]
+
+BETÖLTÉS ÉS INDÍTÁS
+-------------------
+1. Az EightyOne-ban a GLM_PicoAI_v0.8.0_kazetta.T81 fájlt KAZETTÁKÉNT
+   töltsd be (tape/kazetta menü), ne .p-ként.
+2. Írd be: LOAD "" majd ENTER — a gép a RTBOOT01 blokkot hozza be.
+3. A boot kérdéseire válaszolj (év, hónap, nap, óra, perc, név, nem).
+4. A gép felírja: "Tekerj fel a szalagot a RT-BASE16 blokkra!" —
+   tekerd a kazettát a második blokk elejére (a tape managerben
+   látszik a blokknév), majd ENTER.
+5. A lánc-betöltés után a motor elindul: "tinyllm v0.5.4" (v. hasonló)
+   és a chat alján a "you> " prompt.
+
+HASZNÁLAT A CHATBEN
+-------------------
+  Kisbetűkkel írd a sorod, ENTER küldi.
+  /TOPIC 1..13   témaváltás (a tudásblokk névre betöltése a szalagról;
+                  1 tud 2 elet 3 hobbi 4 egesz 5 munka 6 muvesz
+                  7 tanul 8 irod 9 film 10 prog 11 csill 12 rajz 13 vers)
+  /SAVE           emlékek mentése (a kazetta írásával — óvatosan!)
+  /NEW            új beszélgetés
+  SHIFT+1..4      "hőfok" (véletlenesség) beállítása
+  SHIFT+2 üres soron  gondolkodó-kapcsoló
+  SHIFT+5 / SHIFT+0  emlék-visszatekintés lapozása
+  SHIFT+0 a sorban  a beviteli sor törlése
+
+AZ ELLENŐRZÉS ÁLLÁSA (őszintén)
+--------------------------------
+Bájtszinten mind az 15 blokkon végigfutott az ellenőrzés:
+  E_LINE = 0x4009 + képhossz, a blokk 0x80-ra végződik (az EO
+  nem vág belőle), a sorok után 0x80 jelző áll, a CH_ADD az utolsó
+  sor 0x76-ján van, az 1. sor REM-mel kezdődik.
+Éles EightyOne-próbája a javításnak MÉG NEM volt — a lánc-betöltés
+utáni viselkedés a ROM bájtjaiból levezetett következtetés.
+A v0.6.5-nél a felhasználó EO-próbája a bootig tartó részt
+megerősítette (betöltés, profilkérdések, blokk-keresés); a
+v0.8.0-nál ugyanez a próba dönti el, hogy a javítás elég-e.
+
+AMIT NEM TUDTAM ELKÉSZÍTENI
+---------------------------
+- A motort (C forrás) nem tudom újrafordítani (nincs SDCC/z88dk a
+  gépen), ezért képfájl-szintű a javítás.
+- A /quit hiba változatlan: nem állítja le a ciklust.
+- A v0.6.5 README témalistája az egyes fájlnevek sorrendjétől
+  néhány ponton eltér; melyik a helyes, az éles próba dönti el.

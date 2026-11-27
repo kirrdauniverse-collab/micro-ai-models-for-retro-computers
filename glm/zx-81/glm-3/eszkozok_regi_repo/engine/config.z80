@@ -1,0 +1,81 @@
+; ====================================================================
+; config.z80 — Pico AI v0.1 konstansok (a memóriatérkép: docs/02)
+; ====================================================================
+
+; --- ZX81 rendszer-változók
+VERSN     EQU 0x4009
+E_PPC     EQU 0x400A
+D_FILEV   EQU 0x400C
+DF_CCV    EQU 0x400E
+VARSV     EQU 0x4010
+E_LINEV   EQU 0x4014
+FRAMESV   EQU 0x4034
+RAMTOP    EQU 0x4004          ; a VALÓDI RAMTOP-cím — a ROM bájtjaiból
+                               ; bizonyítva: NEW (03C3): ED 4B 04 40 =
+                               ; LD BC,(0x4004); INITIAL (03E5): 2A 04 40.
+                               ; (A 0x4026 a LAST-K, NEM a RAMTOP!)
+
+; --- ROM rutinok (a disassemblyből ellenőrizve)
+ROM_CLS    EQU 0x0A2A
+ROM_SLOW   EQU 0x0F2B
+ROM_FAST   EQU 0x02E7
+ROM_KEYB   EQU 0x02BB
+
+; --- memóriatérkép
+CODE      EQU 0x4082          ; a motor indul (1 REM belseje)
+DFILE     EQU 0x7B00          ; képernyő (793 B)
+VARSND    EQU 0x7E19          ; VARS 0x80 jelző (FULL kép vége)
+DICT_HI   EQU 0x5F00          ; szótár: hash-index 256 B
+DICT_FL   EQU 0x6000          ; token -> zászlók 256 B
+DICT_OF   EQU 0x6100          ; token -> u16 offset 512 B
+DICT_ST   EQU 0x6300          ; szavak [hossz][kódok...] (1328 B-ot hasznal)
+DICT_END  EQU 0x6840          ; a ST vége utáni pudron — a KB lejjebb jött!
+KB        EQU 0x6840          ; PK01 tudáscsomag (2016 B, 0x7030-ig) —
+                               ; ez adja a ~600 B munkateret STKEND és
+                               ; RAMTOP közé (a 4-es hibakód ELLEN!)
+STZE      EQU 0x7160          ; TARTÓS ÁLLAPOT-ZÓNA 72 B — RAMTOP (0x715F) FÖLÖTT!
+STZE_LEN  EQU 72
+LEARN     EQU 0x71B0          ; tanult-zóna 640 B (ugyancsak védett)
+LEARN_END EQU 0x7430
+CHATR     EQU 0x7430          ; chat-gyűrű ~1,6 KB (védett)
+CHATR_END EQU 0x7A60
+IDLEF     EQU 0x7A60          ; idle-jelzés a szimulátornak (fejlesztés)
+STACK     EQU 0x7FFD
+
+; --- D_FILE sorok (sor r cellái: DFILE+1+33*r)
+ROW_STATE EQU 0               ; 0-2: csomagolt tartós állapot
+ROW_STAT  EQU 3               ; státuszsor (inverz)
+ROW_CHAT  EQU 4               ; 4-17: csevegő-konzol
+ROW_CHATL EQU 17
+ROW_THINK EQU 18              ; gondolkodás-sáv (inverz)
+ROW_IN    EQU 19              ; 19-21: bevitel + prompt + tipp
+ROW_INL   EQU 21
+COLS      EQU 32
+
+; --- szótár-tokenek különleges jelentése
+TOK_END   EQU 253             ; mondatvég
+TOK_UNK   EQU 254             ; ismeretlen/ismeretlen módú szó (literál)
+TOK_NUM   EQU 255             ; szám (értéke a szám-pufferben)
+
+; --- zászló-bitek (DICT_FL és a csomagban)
+F_QUES    EQU 1
+F_VERB    EQU 2
+F_NOUN    EQU 4
+F_MOOD    EQU 8
+F_PROF    EQU 16
+F_NUMW    EQU 32
+F_FUNC    EQU 64
+F_TRIG    EQU 128
+
+; --- bitmezők (állapot-bájt)
+BIT_FEMALE   EQU 1
+BIT_CHILD    EQU 2
+BIT_HEADHURT EQU 16
+BIT_ASKHEAD  EQU 32
+BIT_REASON   EQU 64
+
+; --- hangulatok
+MOOD_JOY   EQU 0
+MOOD_WOW   EQU 1
+MOOD_SAD   EQU 2
+MOOD_SHOCK EQU 3

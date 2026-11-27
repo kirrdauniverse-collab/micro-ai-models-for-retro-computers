@@ -1,0 +1,178 @@
+; ====================================================================
+; keys.z80 — billentyű-mátrix-szkenn + esemény-dekódolás
+;
+; A ZX81 ROM INPUT parancs-rutinja (0x0EE9) gépi kódból nem hívható
+; biztonságosan (a BASIC-futtató futásidejű kontextusát feltételezi —
+; l. docs/02), ezért a bevitel KARAKTERES módban a ROM-mal azonos
+; sémájú saját 8x5-ös port-szkennel működik: port 0xFE, a sort a magas
+; címbájt választja (pontosan, ahogy a ROM KEYBOARD rutinja, 0x02BB),
+; a dekódolás a saját KEYCHR táblánkkal. Így a SHIFT-vezérlők is nyers
+; szinten látszanak, BASIC-tokenek nélkül.
+; ====================================================================
+
+; nyers kódok (sor*5+oszlop) — a VALÓDI ZX81-mátrix szerint
+; (sorok: FE=SHIFT-ZXCV, FD=ASDFG, FB=QWERT, F7=12345, EF=09876,
+;  DF=POIUY, BF=NEWLINE-LKJH, 7F=SPACE-.MNB)
+K_S1    EQU 15           ; 1   (F7 sor 0. oszlop)
+K_S5    EQU 19           ; 5
+K_S6    EQU 24           ; 6   (EF sor 4. oszlop)
+K_S9    EQU 21           ; 9
+K_S0    EQU 20           ; 0
+K_SKEY  EQU 6            ; S   (FD sor 1. oszlop)
+K_SHIFT EQU 0            ; SHIFT (FE sor 0. oszlop)
+K_NEWLN EQU 30           ; NEWLINE (BF sor 0. oszlop)
+; eseménykódok (0x80+)
+EV_ENTER   EQU 0x80
+EV_SPACE   EQU 0x81
+EV_RUBOUT  EQU 0x82
+EV_TEMP1   EQU 0x83
+EV_SCROLLD EQU 0x87
+EV_SCROLLU EQU 0x88
+EV_REASON  EQU 0x89
+EV_SAVE    EQU 0x8A
+
+; ------------------------------------------------------------------
+; scankeys — kimenet: KEYCODE (0 = nincs, vagy nyers+1), KEYSHF (0/1)
+scankeys:
+        PUSH AF
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        XOR A
+        LD (KEYCODE),A
+        LD (KEYSHF),A
+        LD B,0xFE        ; sorválasztó (port = B*256 + 0xFE)
+        LD C,0xFE
+        LD D,0           ; sorszám 0..7
+sk_row: IN A,(C)
+        AND 0x1F
+        CP 0x1F
+        JR Z,sk_next     ; ebben a sorban nincs lenyomva
+        BIT 0,A
+        JR Z,sk_c0
+        BIT 1,A
+        JR Z,sk_c1
+        BIT 2,A
+        JR Z,sk_c2
+        BIT 3,A
+        JR Z,sk_c3
+        LD E,4
+        JR sk_hit
+sk_c0:  LD E,0
+        JR sk_hit
+sk_c1:  LD E,1
+        JR sk_hit
+sk_c2:  LD E,2
+        JR sk_hit
+sk_c3:  LD E,3
+sk_hit: LD A,D
+        ADD A,A
+        ADD A,A          ; 4*sor
+        ADD A,D          ; 5*sor
+        ADD A,E          ; + oszlop -> nyers kód
+        LD E,A
+        CP K_SHIFT
+        JR Z,sk_sh
+        LD A,(KEYCODE)
+        OR A
+        JR NZ,sk_next    ; már van tárolt kulcs
+        INC E
+        LD A,E
+        LD (KEYCODE),A
+        JR sk_next
+sk_sh:  LD A,1
+        LD (KEYSHF),A
+sk_next:
+        RLC B            ; következő sor; carry = a kilépő bit 7
+        INC D
+        JR C,sk_row      ; 1: még van sor (FE..7F)
+        POP BC
+        POP DE
+        POP HL
+        POP AF
+        RET
+
+; ------------------------------------------------------------------
+; getevent — A = 0 (nincs esemény) / karakter (ZX-kód) / 0x80+ esemény
+; A „lenyomva tartás" egy eseményt ad; elengedés után jöhet újabb.
+; Debounce: LASTKC = az előző szkenn kulcsa.
+getevent:
+        PUSH BC
+        PUSH DE
+        PUSH HL
+        CALL scankeys
+        LD A,(KEYCODE)
+        LD B,A
+        LD A,(LASTKC)
+        CP B
+        JR Z,ge_ret0     ; nincs változás
+        LD A,B
+        LD (LASTKC),A
+        OR A
+        JR Z,ge_ret0     ; elengedés -> esemény nélkül
+        DEC B            ; B = nyers kód
+        LD A,(KEYSHF)
+        OR A
+        JR Z,ge_plain
+        ; --- SHIFT-tel:
+        LD A,B
+        CP K_S1
+        JR Z,ge_t1
+        CP K_S1+1
+        JR Z,ge_t2
+        CP K_S1+2
+        JR Z,ge_t3
+        CP K_S1+3
+        JR Z,ge_t4
+        CP K_S5
+        JR Z,ge_scd
+        CP K_S6
+        JR Z,ge_scu
+        CP K_S9
+        JR Z,ge_rea
+        CP K_S0
+        JR Z,ge_rub
+        CP K_NEWLN
+        JR Z,ge_spc
+        CP K_SKEY
+        JR Z,ge_sav
+        ; egyéb shift+billentyű: sima karakter (a ZX81-ben nincs case)
+ge_plain:
+        LD A,B
+        CP K_NEWLN
+        JR Z,ge_ent
+ge_char:
+        LD E,B
+        LD D,0
+        LD HL,KEYCHR
+        ADD HL,DE
+        LD A,(HL)
+        JR ge_out
+ge_t1:  LD A,EV_TEMP1
+        JR ge_out
+ge_t2:  LD A,EV_TEMP1+1
+        JR ge_out
+ge_t3:  LD A,EV_TEMP1+2
+        JR ge_out
+ge_t4:  LD A,EV_TEMP1+3
+        JR ge_out
+ge_scd: LD A,EV_SCROLLD
+        JR ge_out
+ge_scu: LD A,EV_SCROLLU
+        JR ge_out
+ge_rea: LD A,EV_REASON
+        JR ge_out
+ge_rub: LD A,EV_RUBOUT
+        JR ge_out
+ge_ent: LD A,EV_ENTER
+        JR ge_out
+ge_spc: LD A,EV_SPACE
+        JR ge_out
+ge_sav: LD A,EV_SAVE
+        JR ge_out
+ge_ret0:
+        XOR A
+ge_out: POP HL
+        POP DE
+        POP BC
+        RET

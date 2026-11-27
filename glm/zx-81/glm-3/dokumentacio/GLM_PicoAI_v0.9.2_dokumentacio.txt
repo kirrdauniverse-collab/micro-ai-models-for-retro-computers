@@ -1,0 +1,57 @@
+PICO-AI — v0.9.2 — GYÓGYÍTÓ KAZETTA (második javító menet)
+============================================================
+
+MI TÖRTÉNT AZ ELŐZŐ PRÓBÁNÁL?
+Az első blokk betöltésekor "bevillanó fekete csíkok" jelentek meg, majd a
+gép lefagyott. Ez más tünet, mint a v0.9.0 csúszott-képe hibája — és a
+gyökere más is.
+
+A BIZONYÍTÉKLÁNC (bájtszintű diffek + az EO forráskódja)
+1) A v0.9.1 boot-blokkja BÁJTONKÉNT azonos a v0.8.1 boot-blokkjával —
+   és a v0.8.1 SOHA nem futott még élő EO-n! Az utolsó élőben tesztelt
+   verzió a v0.8.0 volt ("a betöltés és a profilkérdések lefutottak").
+   Tehát a szalagon lévő v0.8.1-es állapot volt kipróbálatlan — a hiba
+   abban került először élő gépre.
+2) A v0.8.0 -> v0.8.1 patch a mindkét blokkfajtában a $7AE5 címre a
+   "CA A9 02" (JP Z,$02A9) helyett "D3 FE FB" (OUT ($FE); EI) írt —
+   FELTÉTEL NÉLKÜLI portírást a várakozó hurokba.
+3) Az EightyOne forráskódja (Source/zx81/zx81.cpp) szerint minden OUT ($FE)
+   = NMI-generátor BE + a JELENLEGIV képsorba injektált szinkron-impulzus
+   ("CurScanLine->sync_len += ts"). A hurok minden iterációjában portírás
+   -> soronkénti sync -> PONTOSAN a "bevillanó fekete csíkok" + szétesett
+   kép + fagyás.
+4) A környék disassembly-e megmutatta: a $7AE5-ös pont a motor SAJÁT
+   szalag-olvasó hurokjának feje; alatta a v0.6.5-ös bit-olvasó maradvány-
+   láncával (NEG; INC C; LD B,8; OUT (FE)) — a v0.8.1-es patch ezt a
+   fejet cserélte le feltétel nélküli portírásra.
+
+A v0.9.2 JAVÍTÁSA (mind a 15 blokkban, EGY bájt)
+  $7AE5: D3 (OUT ($FE),A)  ->  DB (IN A,($FE))
+  Az IN nem ír portot => NINCS sync-injektálás => nincs fekete csík.
+  Az EI változatlan => a NMI-engedély megmarad (a v0.6.5-ös PC=$004x
+  örök-várakozás az "OUT FD / JP 02A9" ágon ült, ami változatlan).
+  Minden más bájt a v0.8.1-ből való — ideértve a v0.8.1-es "0x76->0x80"
+  programvége-javításokat és a 24 soros D-FILE-szerkezetet.
+
+EMIATT HIÁNYOZIK A v0.9.1 "RTMEM16" BLOKKJA
+A blokk név-kódjának utolsó bájtjáról hiányzott a bit7-es név-terminátor
+(0x22 volt a 0xA2 helyett) — a ROM blokk-szkenner a név végét bit7-ből
+ismeri fel; enélkül a 160 bájtot "névként" nyeli a szkenner, és a
+későbbi blokkok címezése eltolódik. Mivel a szalagon lévő v0.8.1-motor
+a RTMEM16-ot úgysem használja (azt csak az új, lefordításkor 21 KB-os
+v0.9.0-motor ismerné), a v0.9.2-ből teljesen kihagytam.
+
+HASZNÁLAT — pontosan mint a v0.8.1-nél:
+  1. Tape Manager: GLM_PicoAI_v0.9.2_kazetta.T81
+  2. LOAD "" és RUN
+  3. A boot-kérdések után a kazetta tekerése az RTBASE16 blokkhoz (ENTER)
+  4. Chat + /topic 1..13, SHIFT+0 törlés
+
+A HÁROM KIPRÓBÁLÁSI ESET, AMIT KÉREK (a részletek számítanak!):
+  A) LOAD "" -> RUN: megjelenik-e a profilkérdés fagyás/csík NÉLKÜL?
+  B) Ha igen: ENTER a kazetta-tekintésre az RTBASE16-ig — a lánc-betöltés
+     után rendben indul-e a chat? (Ez a lépés a v0.6.5/v0.8.0 óta nem
+     ment ÉLŐBEN; a $7AE5-ös hurok pont itt dolgozik!)
+  C) Ha chat megy: /quit után mi látszik (a régi /quit-hiba nyomon követése)
+
+MD5: 6f5fc138e66e2ccdd52b982fffdb9003, 227 923 bájt, 15 blokk.

@@ -1,0 +1,118 @@
+GLM Pico AI — A VÁLTOZATOK ÁTTEKINTÉSE ÉS A v0.8.0 KIINDULÓ ALAPJA
+=====================================================================
+Dátum: 2026-11-24
+Előzmény: a felhasználó kérése — "nézd át ismét az összes változatot és a
+csevegésünket, állapítsd meg, melyik változat volt a legeredményesebb,
+és azt fejleszd tovább".
+
+1. MIT TAPASZTALT A FELHASZNÁLÓ AZ EIGHTYONE-BAN (a csevegés alapján)
+----------------------------------------------------------------------
+Verzió        Mi történt a valódi EO-próbában
+v0.4.0/v0.4.5 Működött (rt16_base.p, 15889 B). Ez az utolsó olyan
+              változat, amelyet a felhasználó működőként erősített meg.
+v0.5.0        Reset.
+v0.5.1–0.5.3  Hibajelentések utáni javítók; egyik sem vált megerősítetten
+              működővé.
+v0.5.4        "Részben használható".
+v0.6.5        EO-próba nem történt; csak a saját Python-szimulációban futott.
+v0.1-dev      Assembly-motor, csak a saját szimulációjában futott.
+v0.7.0        Intro, majd fehér képernyő.
+v0.7.1/0.7.2  "4/2" hibakód, ENTER után reset (két képernyőkép).
+v0.7.3        A BASIC hibás: FOR a REM helyett, PLOT a PRINT helyett.
+
+2. BÁJTSZINTŰ BIZONYÍTÉK (ma futtatott ellenőrző szkriptek)
+----------------------------------------------------------
+A két szkript a scripts/ mappában van (tape_blocks_report.py,
+basic_tokens_report.py); a nyers kimenet a forráscsomag
+ellenorzes/ mappájába került.
+
+v0.7.3 (GLM_PicoAI_v0.7.3_kazetta.T81)
+  - Mind a négy blokk (PICOBOOT, PICOBASE, PICOASTR, PICOSCIN) első sora
+    0xEB bájttal indul: az a FOR token. A REM tokenje 0xEA. A felhasználó
+    tehát minden betűjében igaz: a v0.7.3 a gépi kódot a FOR után tette.
+  - A szöveget kiírató sor 0xF6-ot (PLOT) tartalmaz ott, ahol 0xF5 (PRINT)
+    kellene.
+  - Ok: a v0.7.3 készítéséhez egy OCR-rel sérült token-táblát használtam,
+    és minden token egyet elcsúsztatam. A helyes tábla (a v0.5.4
+    készítőjének bájtaival és a valódi ROM-mal egyező):
+    PEEK D3, USR D4, THEN DE, TO DF, SLOW E4, FAST E5, NEW E6, REM EA,
+    FOR EB, GOTO EC, GOSUB ED, INPUT EE, LOAD EF, LIST F0, LET F1,
+    PAUSE F2, NEXT F3, POKE F4, PRINT F5, PLOT F6, RUN F7, SAVE F8,
+    RAND F9, IF FA, CLS FB, CLEAR FD, RETURN FE, COPY FF.
+
+v0.5.4 (GLM_v054_RT16_TOPICS.t81) — miért volt csak "részben használható"
+  - A nem-boot blokkok 14899 bájtosak, de a képben tárolt E_LINE 0x7E1A
+    (15897 bájtos képhez valós). A ROM LOAD-ja csak akkor fejezi be a
+    betöltést, ha a betöltött bájt elérte a kép SAJÁT E_LINE-1 címét
+    (LD-BYTES 0x01FC: INC HL; LD HL,(E_LINE); SCF; SBC HL,DE; RET NC).
+  - Az EightyOne ráadásul minden blokkot az utolsó 0x80 bájtig visszavág
+    (tzxload.cpp), itt 131–186 bájtot blokkonként, összesen 2092 bájtot.
+  - A szalag tehát túl hamar elhallgat → a ROM IN-BYTE időtúllépése
+    (0x034C) → INITIAL (0x03E5) lefut → a D_FILE-t 0x407D-re teszi és a
+    kijelzőt oda építi, ez a program első kb. 800 bájtját letakarítja.
+    Ez magyarázza a "részben működik" tünetet.
+
+v0.6.5 (GLM_v065_RT16_TOPICS.t81) — a mai mérés
+  - 15 blokk: RTBOOT01 (15897 B), RTBASE16 és 13 témablokk (mindegyik
+    15093 B). Az EO által levágott bájt: mind a 15 blokknál 0.
+  - Minden blokk E_LINE-ja pontosan 0x4009 + blokkhossz (0x7E1A, illetve
+    0x7AF6), és az utolsó bájt a 0x80 program-vég jelző. A ROM LOAD-ja
+    tehát a blokk végén, INITIAL futása nélkül fejezi be a betöltést.
+  - BASIC a tokenek szintjén (mind a 15 blokkban):
+      1 REM <gépi kód>            (az 1. sor első bájtja 0xEA = REM)
+      6 IF USR 16514 … THEN LOAD "RT-…"   (IF FA, USR D4, THEN DE, LOAD EF)
+    A gépi kód csak a REM után áll. A betöltő BASIC-ben nincs PLOT.
+  - Két megjegyzés az én listázómhoz: a számok dekódolása hibás számjegyeket
+    ír (a tokenek helyesek, a számjegyek nem), és a 6. sor utáni sort a
+    listázóm nem dolgozta fel. Ezek az eszközöm hibái, nem a kazettáé.
+
+3. DÖNTÉS: MELYIK VÁLTOZAT VOLT A LEGEREDMÉNYESEBB
+--------------------------------------------------
+A legeredményesebb vonal a v0.4.5 → v0.5.4 → v0.6.5: C-motor + BASIC
+betöltő, a gépi kód 1 REM után, E_LINE-nal végződő blokkokkal. Az
+assembly-motoros vonal (v0.1-dev, v0.7.0–v0.7.3) egyetlen változata sem
+működött a valódi EO-ban, ezért azt alapként elhagyom.
+A v0.6.5 a vonal legfejlettebb tagja: a v0.5.4 blokkhibáját javítja,
+és a /TOPIC váltás meg a chat-törlés benne van. Még senki nem próbálta
+ki EO-ban — ez a következő lépés.
+A v0.8.0 ezért a v0.6.5-re épül, a v0.7.x-re nem.
+
+4. SZABÁLYOK MINDEN TOVÁBBI VÁLTOZATHOZ
+----------------------------------------
+1. Gépi kód csak REM (0xEA) után állhat. A FOR (0xEB) után soha.
+2. Szöveget a motor a képernyőre ír; a BASIC-ben szöveget csak PRINT
+   (0xF5) írhat, PLOT (0xF6) csak pontot rajzol.
+3. Minden blokk az utolsó bájtig pontosan a saját E_LINE-1 címig tart,
+   és 0x80-ra végződik; a sysvars-ban az E_LINE = 0x4009 + blokkhossz.
+4. Token-táblát csak a valódi ROM bájtaiból vagy a v0.5.4 készítőjének
+   bájtaiból szabad átvenni; OCR-rel olvasott táblát nem.
+
+5. VISSZAVONÁS
+--------------
+Visszavonom a STATE.md 7. menetében leírtakat:
+  - "A valódi tábla: NEW=0xE7 REM=0xEB INPUT=0xEF LOAD=0xF0 …" — HIBÁS.
+    A helyes: NEW E6, REM EA, INPUT EE, LOAD EF, PRINT F5, USR D4,
+    THEN DE, IF FA, SAVE F8, RAND F9.
+  - "A 'J' gomb LOAD tokent ad (E_LINE: F0)" — HIBÁS: a J gomb LOAD-ot
+    ad, az 0xEF; a 0xF0 a LIST.
+Visszavonom továbbá a v0.7.3 váltásnaplójában azt, hogy a tokenek
+"a valódi táblára" lettek javítva: a v0.7.3 kazetta BASIC-je hibás,
+a változat használhatatlan.
+
+6. AMI NEM KÉSZÜLT EL
+---------------------
+- A v0.8.0 kazetta nincs megépítve. Ebben a menetben nem volt rá idő.
+- A valódi ROM-ot futtató hű szimulátor (GLM/repo/tools/romsim.py)
+  félig kész: a hideg indulás lefut (RAMTOP 0x7FFF, D_FILE 0x407D,
+  E_LINE 0x4397, 184028 lépés után a szerkesztő várakozik), de a
+  SLOW-módú videó/NMI modellezése nincs megoldva, ezért a gépelést és a
+  LOAD-ot a valódi ROM-mal még nem tudtam végigfuttatni.
+- A v0.7.1/0.7.2 "4/2" hibáját nem reprodukáltam.
+- A v0.6.5 /quit hibája változatlanul fennáll (a README-ben leírt módon).
+
+7. MIT KÉREK
+------------
+Töltsd be az EO-ba a GLM_PicoAI_v0.6.5_kazetta.T81 fájlt KAZETTÁKÉNT
+(nem .p-ként), majd LOAD "" és RUN. Ha a boot után bejön a chat, a
+v0.8.0-t erre építem. Képernyőkép a betöltés után, és arról, hogy a
+RUN után mit ír a képernyő, nagy segítség.

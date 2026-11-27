@@ -1,0 +1,37 @@
+GLM Pico AI v0.6.5 — VÁLTOZASNAPLÓ (kézbesítés: 2026-11-24)
+============================================================
+
+MIT VÁLTOZOTT A PROGRAMBAN
+--------------------------
+Semmi. A kazetta bájtról bájtra megegyezik a korábbi
+GLM_v065_RT16_TOPICS.t81 fájllal (227923 bájt, 15 blokk). Ezt a
+változatot azért kézbesítem újra, mert a változatok áttekintése azt
+mutatta, hogy ez a legeredményesebb vonal legfejlettebb tagja, és még
+nem volt valódi EightyOne-próbája. A v0.8.0 erre épül.
+
+A VÁLTOZAT TARTALMA (a korábbi v0.6.5 szerint)
+---------------------------------------------
+- /TOPIC váltás javítva: a névtábla választása, a név-író idézőjel-
+  törlése, és a ROM SET-FAST HALT-ja körüli fagyás. A /topic átírja a
+  LOAD nevét a sorban, bekapcsolja az NMI-generátort, és a ROM saját
+  LOAD-ja névre keresi a blokkot.
+- Chat-törlés (SHIFT+0): a 8-as kód a sorvég rövidítésére és a képernyő
+  törlésére fut.
+- Blokkjavítás a v0.5.4-hez képest: a nem-boot blokkok 15093 bájtosak,
+  E_LINE = 0x4009 + blokkhossz, az EO levágása 0 bájt.
+
+A KÉZBESÍTÉSBEN ÚJ DOLGOK
+-------------------------
+- Bájtszintű ellenőrzés két új szkripttel:
+    scripts/tape_blocks_report.py  (EO-vágás és E_LINE blokkonként)
+    scripts/basic_tokens_report.py (BASIC a tokenek szintjén)
+  Kimenet: ellenorzes/blokkok_v054_v065_v073.txt, basic_v065.txt.
+- Áttekintő dokumentum minden változatról és a döntésről:
+    GLM_PicoAI_v0.8.0_valtozas_attekintes.txt
+- Visszavonás: a v0.7.3 váltásnaplójának token-állításai és a STATE.md
+  7. menetének ugyanezen állításai hibásak voltak.
+
+A VÁLTOZAT SAJÁT HIBÁI (változatlanul)
+--------------------------------------
+- /quit nem állítja le a ciklust.
+- Valódi EO-próba még nem történt.

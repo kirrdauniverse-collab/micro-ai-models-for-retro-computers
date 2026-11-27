@@ -1,0 +1,76 @@
+PICO AI — v0.8.1 — GLM FORDÍTÁS
+================================
+
+MI VÁLTOZOTT?
+-------------
+
+A v0.8.1 a v0.6.5/v0.8.0 EO-próbákon (EightyOne emulator) jelentkező
+PC=$004x beragadás VALÓDI gyökérokát javítja, bájtszinten.
+
+A TÉNYEK (EO-debugger képernyőkép + ROM-szétszerelés):
+  - A gép a PC=$0044-nél ragadt be (JP (HL)), a $0041-$0047 WAIT-INT
+    hurokban 'számlál, de a tartomány ez marad' — pontosan a felhasználó
+    jelentése szerint.
+  - Az EO-debugger 'NMI Generator: Off' — a NMI-generátor KI volt
+    kapcsolva, amikor a ROM NMI-re váró primitívje futott.
+  - A verem ($028B, $7A39/$7A3A, $04EE, $0024, $09AA, $083D) a motor
+    billentyűváró hurokának hívási láncát mutatja (KEYBOARD $02BB →
+    DISPLAY-5 $02B5 → a motor DISPLAY-2-másolatának farokcsapdája).
+
+A GYÖKÉROK (bájtszinten):
+  A motor (minden blokkban azonos $7AE0-nál lévő) 'farokcsapdája':
+      LD A,($403B)        ; CDFLAG
+      AND $80             ; NMI-generátor bit7 be?
+      JP Z,$02A9          ; ← HIBÁS ÁG: NMI-off esetén a ROM DISPLAY-4
+                          ;   hívódik, ami DISPLAY-5 (LD R,A / EI /
+                          ;   JP (HL)) útján NMI-t VÁR — de az NMI ki
+                          ;   van kapcsolva → örök hurok a WAIT-INT
+                          ;   ($0041-$0047) körzetben. Fehér képernyő
+                          ;   (nincs videó-generálás), se billentyűre
+                          ;   válasz, se továbbhaladás.
+  A v0.6.5 saját README-je már ismerte a hibát a /topic váltás útján
+  ('a HALT várakozás kifagyott: a motor a chat alatt KI kapcsolja az
+  NMI generátorát') — ott ki is javították (OUT ($FE) + DISPLAY-3).
+  A NORMÁL chat/betöltés-várakozó hurokban azonban ott maradt a hiba,
+  és a szimulátor (a DISPLAY-5-öt azonnal visszapattintó modellje)
+  elrejtette: a valódi EO-ban a lánc itt fagyott meg.
+
+A JAVÍTÁS (mind a 15 blokkban, azonos $7AE0 címen — 3 bájt):
+      $7AE5: CA A9 02 (JP Z,$02A9)  →  D3 FE FB (OUT ($FE); EI)
+  Ezzel NMI-off esetén a motor BEkapcsolja az NMI-generátort és
+  engedi a megszakításokat, majd a meglévő OUT($FE)+DISPLAY-3 útra
+  fut — pontosan a /topic-út (v0.6.5-ben bizonyítottan működő)
+  mintájára.
+
+  A szerkesztőbetöltés utáni állapot is ezen az úton stabilizálódik:
+  a DISPLAY-6 (ROM $04C1) a CDFLAG bit7-et nézi — NMI bekapcsolása
+  után a szerkesztő főciklusa normál SLOW-módban működik.
+
+BANNER-FRISSÍTÉS:
+  A motor 'tinyllm v0.6.5' felirata minden blokkban (14 db, a
+  RTBOOT01-ben nincs banner) 'tinyllm v0.8.1'-re frissült — így a
+  chat-ben a /help-képernyőn a valódi verziószám látszik. (A v0.8.0
+  ezt elfelejtette: a kazetta fájlneve 0.8.0 volt, de a blokkok
+  belsejében lévő felirat 0.6.5 maradt — a felhasználó jogosan
+  kérdezte, nem keveredtek-e össze a fájlok. Nem: a v0.8.0 md5-je
+  eltért a v0.6.5-étől, csak a felirat maradt régi.)
+
+FÁJLOK:
+  GLM_PicoAI_v0.8.1_kazetta.T81  — a javított kazetta (15 blokk)
+  (a v0.6.5/v0.8.0 kazettákkal megegyező szerkezet: EO81-formátum,
+   blokkonként [név 32][hossz 16][adat]; E_LINE=0x4009+blokkhossz,
+   D_FILE=0x7B00, VARS-vég 0x80, EO levágás 0 bájt)
+
+HASZNÁLAT (EightyOne):
+  1. Töltsd be a T81-et a Tape Manager-be (kazetta-ként!)
+  2. LOAD "" és RUN
+  3. A boot-kérdések után a kazetta tekerés kérése jön (RTBASE16)
+  4. ENTER — a blokk betöltödik, és a chat indul (tinyllm v0.8.1)
+  5. /topic 1..13 = téma-váltás, SHIFT+0 = törlés a chat-ben
+
+ISMERT, NEM JAVÍTOTT HATÁROK:
+  - A /quit még mindig nem állítja le a ciklust (a 3. sor újra
+    meghívja a motort) — v0.6.5 óta ismert határ.
+  - Valódi vason (nem emulator) a teszt még vár.
+
+VERZIÓVÉGZŐDÉS: GLM-fordítás, bájtszintű javítás a v0.6.5 kazettán.

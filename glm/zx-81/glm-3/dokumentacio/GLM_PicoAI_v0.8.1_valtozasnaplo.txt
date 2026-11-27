@@ -1,0 +1,69 @@
+PICO AI — v0.8.1 — VÁLTOZÁS-NAPLÓ
+==================================
+
+[2026-11-25] v0.8.1 — a PC=$004x beragadás VALÓDI gyökérok-javítása
+
+ELŐZMÉNY:
+  A v0.6.5 (és a v0.8.0, a 45 bájtos jelző-javítás) EO-próbája
+  ugyanazt a képet adta: a RTBASE16 blokk betöltése után 2-3
+  grafikus karakter a képernyő alján, a felső sor kiúszása,
+  gyors fehér kép, majd semmi — a PC a 004x tartományban
+  'számlál, de a tartomány ez marad'.
+
+VIZSGÁLAT (bájtszintű, a felhasználó EO-debugger képernyőképéből):
+  1) A képernyőkép pontos leolvasása (VLM):
+     - PC = $0044 (JP (HL)), HL = $0047 → a $0041-$0047 WAIT-INT
+       hurok; a EO-disassembly címkéi: WAIT-INT/SCAN-LINE/CH-ADD+1.
+     - 'NMI Generator: Off' — a NMI-generátor KI.
+     - Verem: $028B / $7A39 / $7A3A / $04EE / $0024 / $09AA / $083D.
+     - A tape-ablak címe: GLM_PicoAI_v0.8.0_kazetta.T81 — a
+       felhasználó valóban a javított kazettát próbálta.
+  2) ROM-szétszerelés (saját Z80 disassembler, a EO hivatalos
+     zx81.edition3.sym címkéivel):
+     - $02B5 DISPLAY-5: LD R,A / LD A,$DD / EI / JP (HL) — NMI-t
+       vár; NMI-off mellett örök (a hurok $0041↔$0044↔$0047).
+     - $02E7 SET-FAST: BIT 7,(IY+$3B) / HALT / OUT ($FD) — ha a
+       bit7 ki: a gép FAST-be vált, NMI-t KAPCSOL KI.
+     - $0F23 FAST / $0F2B SLOW parancsrutinok; a SLOW a SET-FAST-et
+       hívja — NMI-off gépen a HALT kifagy.
+     - $04C1 DISPLAY-6: BIT 7,(HL) — a szerkesztő a CDFLAG bit7-et
+       (videó) nézi; a $04CF SLOW-DISP bit0 ('új billentyű') vár.
+  3) A motor kódjának szétszerelése (mind a 15 blokkban azonos):
+     - A $7A60-$7AC5 hurok a ROM DISPLAY-2 ($023E) másolata
+       (KEYBOARD-hívás, DEBOUNCE, 'új billentyű' bit), plusz a
+       $7ABE CALL $02B5 (DISPLAY-5) frame-szinkron.
+     - A $7ADA farokcsapda: LD A,(CDFLAG) / AND $80 /
+       JP Z,$02A9 — a NMI-off ág a ROM DISPLAY-4-et hívja, ami
+       DISPLAY-5-tel NMI-t vár → örök csapda. EZ a gyökérok.
+     - A /topic-út ($7AE0-$7AED) a v0.6.5-ben már javítva volt:
+       OUT ($FE) + JP $02A4 — a normál várakozás nem kapta meg.
+
+JAVÍTÁS (scripts/patch_v081.py):
+  Mind a 15 blokkban ($7AE5): CA A9 02 → D3 FE FB
+  (JP Z,$02A9 → OUT ($FE); EI). NMI-off esetén a motor
+  bekapcsolja az NMI-generátort és engedi a megszakításokat,
+  majd a meglévő OUT(FE)+DISPLAY-3 útra fut (a /topic-út mintájára).
+  + Banner: 'tinyllm v0.6.5' → 'tinyllm v0.8.1' (14 blokkban).
+
+ELLENŐRZÉS:
+  - A javított kazetta 15 blokkja sértetlen (tape_blocks_report):
+    E_LINE=0x4009+hossz, D_FILE=0x7B00, VARS-vég 0x80, EO-levágás
+    0 bájt — a v0.6.5/v0.8.0 szerkezettel azonos.
+  - A javított farokcsapda mind a 15 blokkban a $7AE0-nál
+    ellenőrizve (mintaillesztés + szétszerelés).
+  - A korábbi v0.8.0 '0x76→0x80' javítás hatása változatlanul
+    benne van (a v0.8.1 a v0.8.0 bájtjain indul).
+
+NYITOTT KÉRDÉSEK:
+  - Az élő EO-próba eredménye (a felhasználó következő jelentése) —
+    a javítás a /topic-út bizonyított protokollját másolja, de a
+    teljes chat-láncot csak a valódi EO-próba zárja le.
+  - A /quit nem állítja le a ciklust (v0.6.5 óta ismert határ).
+  - Valódi vason (nem emulator) a teszt még vár.
+
+A v0.8.0 visszavonása: a v0.8.0 javítása (0x76→0x80 + CH_ADD)
+  önmagában NEM volt a gyökérok orvoslása (a hiba maradt) — de
+  nem is ártott: a v0.8.1 ezen a bázison áll. A v0.8.0 'számlál,
+  de a tartomány ez marad' diagnózisa helytelen volt abban, hogy
+  a végjelző-hibát tartotta a fagyás okának; a valódi ok a
+  NMI-várakozó farokcsapda hibás ága.

@@ -1,0 +1,1409 @@
+; ====================================================================
+; main.z80 — Pico AI v0.1 motor: belépés, chat-főciklus, beviteli
+; szerkesztő, chat-gyűrű (görgetés), BASIC-átadás (LOAD/SAVE lánc)
+; ====================================================================
+        ORG CODE          ; a motor címe: 0x4082 (1 REM belseje)
+        JP entry          ; ugróstub: az USR 16514 ide lép be
+
+INCLUDE "config.z80"
+INCLUDE "tables.z80"
+INCLUDE "screen.z80"
+INCLUDE "keys.z80"
+INCLUDE "state.z80"
+INCLUDE "token.z80"
+INCLUDE "gen.z80"
+INCLUDE "date.z80"
+
+; ====================================================================
+; FUTÁSIDEJŰ VÁLTOZÓK (a képen belül; minden belépéskor frissülnek)
+; ====================================================================
+CRT_ROW: DB ROW_CHAT
+CRT_COL: DB 0
+INVFLG:  DB 0
+KEYCODE: DB 0
+KEYSHF:  DB 0
+LASTKC:  DB 0
+OLDSP:   DW 0              ; a BASIC verem mentett címe (entry/mn_endr)
+RNGSEED: DW 0x1D2F
+LASTFR:  DW 0
+FRNOW:   DW 0
+CLKSUB:  DW 0
+CTD:     DW 0
+CLOCKMIN: DW 0
+DAYNO:   DW 0
+STDAY0:  DW 0
+TCNT:    DB 0
+NUMFL:   DB 0
+SEEDTOK: DB 0
+TEMP:    DB 2
+REAS:    DB 1
+TERMCH:  DB 0
+RBUFN:   DB 0
+ABORTF:  DB 0
+INKLEN:  DB 0
+CAPTF:   DB 0
+CAPHL:   DW 0
+RINGH:   DW 0
+RINGN:   DB 0
+RINGPG:  DB 0
+TOPID:   DB 0
+ELRET:   DB 0
+STBUF:   DS ST_LEN
+IBUF:    DS 32
+WBUF:    DS 16
+RBUF:    DS 16
+TBUF:    DS 16
+TFBUF:   DS 16
+TDFBUF:  DS 16
+CAPBUF:  DS 192
+NUMVAL:  DW 0
+UNKP:    DW 0
+UNKL:    DB 0
+
+; ------------------------------------------------------------------
+; belépés (a BASIC 2-es sor USR hívása)
+; A visszatérési címet (a ROM STACK-BC-jét) a fő HL-be POP-oljuk, majd
+; EXX-sel az alternatív készletbe zárjuk — a chat alatt a motor szabadon
+; használja a fő regisztereket és a saját vermét (LD SP,STACK).
+entry:
+        POP HL              ; HL = a BASIC visszatérési címe (STACK-BC)
+        LD (OLDSP),HL       ; elmentjük (a RET előtt visszatöltjük)
+        LD SP,STACK         ; saját verem a védett zóna tetején
+        DB 0xFD,0x21,0x00,0x40   ; LD IY,0x4000 (ROM-konvenció; nincs mnemonikban)
+        CALL ROM_SLOW
+        ; óra- és RNG-indítás a FRAMES-számlálóból
+        LD HL,(FRAMESV)
+        LD (LASTFR),HL
+        LD A,H
+        XOR 0x2F
+        LD (RNGSEED),A
+        LD A,L
+        XOR 0x1D
+        LD (RNGSEED+1),A
+        ; képernyő előkészítése
+        CALL init_screen
+        CALL ring_init
+        ; állapot: a tartós zóna (RAMTOP fölött), ha üres, a REM-farok
+        ; (kazettáról visszatérő /save-kép), ha az is üres: profil-bekérés
+        CALL state_load
+        OR A
+        JR NZ,mn_have
+        CALL tail_load
+        OR A
+        JR NZ,mn_have
+        CALL ask_profile
+        CALL stbuf_save_all
+        JR mn_go
+mn_have:
+        CALL stbuf_to_vars
+        CALL age_events
+        ; a /save-lánc második belépése: PEND=2 azonnali visszatérés
+        ; (a 3-as BASIC sor SAVE parancsa hajt végre; az ezt követő
+        ; line-4-es újrabelépés már a chat-tel folytatódik)
+        LD A,(STBUF+ST_PEND)
+        CP 2
+        JR NZ,mn_go
+        XOR A
+        LD (STBUF+ST_PEND),A
+        CALL stbuf_save_all
+        LD BC,2              ; a SAVE-pendáló visszatérés (ROM USR: BC!)
+        JP mn_endr
+mn_go:  CALL kb_init
+        OR A
+        JR NZ,mn_chat
+        LD HL,TXT_BADKB
+        CALL con_print
+        XOR A
+        JP mn_endr
+mn_chat:
+        CALL banner
+mn_loop:
+        CALL draw_status
+        CALL edit_line
+        LD A,(ELRET)
+        CP 1
+        JR Z,mn_line
+        CP 2
+        JP Z,mn_save
+        CP 3
+        JP Z,mn_topic
+        JR mn_loop
+        ; --- bemeneti sor feldolgozása
+mn_line:
+        CALL check_command
+        LD A,(ELRET)
+        CP 2
+        JP Z,mn_save
+        CP 3
+        JP Z,mn_topic
+        CALL tokenize
+        CALL header_you
+        LD A,1
+        LD (CAPTF),A
+        LD HL,CAPBUF
+        LD (CAPHL),HL
+        CALL print_ibuf
+        XOR A
+        LD (CAPTF),A
+        CALL con_nl
+        CALL ring_capture
+        CALL thinking
+        CALL header_pico
+        LD A,1
+        LD (CAPTF),A
+        LD HL,CAPBUF
+        LD (CAPHL),HL
+        CALL gen_reply
+        XOR A
+        LD (CAPTF),A
+        CALL ring_capture
+        JR mn_loop
+        ; --- kazetta-átadások (a BASIC keretsorok végzik)
+mn_save:
+        LD A,2
+        LD (STBUF+ST_PEND),A
+        CALL stbuf_save_all
+        CALL tail_save
+        LD BC,2              ; a ZX81 USR-ja BC-vel tér vissza (ROM 1AC5)
+        JP mn_endr
+mn_topic:
+        LD A,1
+        LD (STBUF+ST_PEND),A
+        CALL stbuf_save_all
+        CALL tail_save
+        LD HL,TXT_LOADTOP
+        CALL con_print
+        CALL con_nl
+        LD BC,1              ; IF USR 16514=1 THEN LOAD ... — téma-váltás
+mn_endr:
+        LD HL,(OLDSP)        ; a belépéskor mentett BASIC-cím (STACK-BC)
+        PUSH HL              ; a saját veremre, a RET kiszedi
+        RET
+
+; ------------------------------------------------------------------
+; init_screen — konzol alaphelyzet
+init_screen:
+        PUSH AF
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        LD B,ROW_CHAT
+is1:    LD A,B
+        CALL clrrow
+        INC B
+        LD A,B
+        CP ROW_CHATL+1
+        JR C,is1
+        LD A,ROW_THINK
+        CALL clrrow
+        LD A,ROW_STAT
+        CALL clrrow
+        LD A,ROW_CHAT
+        LD (CRT_ROW),A
+        XOR A
+        LD (CRT_COL),A
+        POP BC
+        POP DE
+        POP HL
+        POP AF
+        RET
+
+; ------------------------------------------------------------------
+; banner — rövid üdvözlés
+banner:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        PUSH AF
+        ; a konzol törlése (a profil-bekérés sorai mehetnek) + kurzor a
+        ; chat-tetejére, majd az inverz banner
+        LD B,ROW_CHAT
+bn_cl:  PUSH BC
+        LD A,B
+        CALL clrrow
+        POP BC
+        INC B
+        LD A,B
+        CP ROW_CHATL+1
+        JR C,bn_cl
+        LD A,ROW_CHAT
+        LD (CRT_ROW),A
+        XOR A
+        LD (CRT_COL),A
+        LD A,0x80
+        LD (INVFLG),A
+        LD HL,TXT_BANNER
+        CALL con_print
+        XOR A
+        LD (INVFLG),A
+        CALL con_nl
+        POP AF
+        POP BC
+        POP DE
+        POP HL
+        RET
+TXT_BANNER:
+        DZ "PICO AI V0.1 READY"
+        DB 0xFF
+TXT_BADKB:
+        DZ "BAD KNOWLEDGE PACK"
+        DB 0xFF
+TXT_SAVING:
+        DZ "SAVING MEMORY..."
+        DB 0xFF
+TXT_LOADTOP:
+        DZ "LOADING TOPIC..."
+        DB 0xFF
+
+; ------------------------------------------------------------------
+; draw_status — 3. sor (inverz): PICO T# R# ORA:PERC
+draw_status:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        PUSH AF
+        LD A,ROW_STAT
+        CALL clrrow
+        LD A,ROW_STAT
+        LD C,0
+        CALL con_goto
+        LD A,0x80
+        LD (INVFLG),A
+        LD HL,TXT_STATP
+        CALL con_print
+        XOR A
+        LD (INVFLG),A
+        LD A,(TEMP)
+        ADD A,0x1C
+        CALL con_putc
+        LD HL,TXT_STATR
+        CALL con_print
+        LD A,(REAS)
+        ADD A,0x1C
+        CALL con_putc
+        XOR A
+        CALL con_putc
+        CALL clock_hhmm
+        POP AF
+        POP BC
+        POP DE
+        POP HL
+        RET
+TXT_STATP:
+        DZ "PICO T"
+        DB 0xFF
+TXT_STATR:
+        DZ " R"
+        DB 0xFF
+
+; ------------------------------------------------------------------
+; print_ibuf — az IBUF nyomtatása (0x00 = szóköz, 0xFF = vég)
+print_ibuf:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        PUSH AF
+        LD HL,IBUF
+pi1:    LD A,(HL)
+        CP 0xFF
+        JR Z,pi2
+        CALL con_putc
+        INC HL
+        JR pi1
+pi2:    POP AF
+        POP BC
+        POP DE
+        POP HL
+        RET
+
+; ------------------------------------------------------------------
+; header_you / header_pico — inverz üzenet-fejlécek óra- és
+; tokenszámmal (a felhasználó kérése szerint)
+header_you:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        PUSH AF
+        CALL con_nl
+        LD A,0x80
+        LD (INVFLG),A
+        LD HL,TXT_YOU
+        CALL con_print
+        CALL clock_hhmm
+        LD A,0x1C
+        CALL con_putc
+        LD A,(TCNT)
+        ADD A,0x1C
+        CALL con_putc
+        LD A,0x39           ; 'T'
+        CALL con_putc
+        XOR A
+        LD (INVFLG),A
+        CALL con_nl
+        POP AF
+        POP BC
+        POP DE
+        POP HL
+        RET
+TXT_YOU:
+        DZ "YOU "
+        DB 0xFF
+TXT_PICO:
+        DZ "PICO "
+        DB 0xFF
+
+; ------------------------------------------------------------------
+; header_pico — a válasz fejléce: PICO ORA:PERC nT mS (token, ido)
+header_pico:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        PUSH AF
+        LD A,0x80
+        LD (INVFLG),A
+        LD HL,TXT_PICO
+        CALL con_print
+        CALL clock_hhmm
+        LD A,0x1C
+        CALL con_putc
+        LD A,(RBUFN)
+        ADD A,0x1C
+        CALL con_putc
+        LD A,0x39           ; 'T'
+        CALL con_putc
+        LD A,0x1C
+        CALL con_putc
+        ; válaszidő: (FRAMES-T0FR)/50 másodperc, 0..9
+        LD HL,(FRAMESV)
+        LD DE,(T0FR)
+        OR A
+        SBC HL,DE
+        XOR A
+        LD B,0
+hp1:    LD A,H
+        OR A
+        JR NZ,hp2
+        LD A,L
+        CP 50
+        JR C,hp3
+hp2:    LD DE,0xFFCE        ; -50
+        ADD HL,DE
+        INC B
+        JR hp1
+hp3:    LD A,B
+        CP 10
+        JR C,hp4
+        LD A,9
+hp4:    ADD A,0x1C
+        CALL con_putc
+        LD A,0x2D           ; 'S'
+        CALL con_putc
+        XOR A
+        LD (INVFLG),A
+        CALL con_nl
+        POP AF
+        POP BC
+        POP DE
+        POP HL
+        RET
+T0FR:   DW 0
+
+; ------------------------------------------------------------------
+; edit_line — bemenetsor; ELRET: 0 redraw, 1 sor kész, 2 SAVE, 3 TOPIC
+el_len: DB 0
+edit_line:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        PUSH AF
+        ; a konzolkurzor mentese: a beviteli sor (19) a sajat kurzort
+        ; hasznalja, de a bekuldott sor utan a valasz innen folytatodik
+        LD A,(CRT_ROW)
+        LD (el_sr),A
+        LD A,(CRT_COL)
+        LD (el_sc),A
+        XOR A
+        LD (ELRET),A
+        LD (el_len),A
+        LD HL,IBUF
+        LD (HL),0xFF
+        CALL el_draw
+        LD A,0x55
+        LD (IDLEF),A
+el_loop:
+        CALL clk_tick
+        CALL getevent
+        OR A
+        JR Z,el_loop
+        CP 0x80
+        JR C,el_char
+        CP EV_ENTER
+        JP Z,el_enter
+        CP EV_SPACE
+        JR Z,el_space
+        CP EV_RUBOUT
+        JP Z,el_rub
+        CP EV_SAVE
+        JP Z,el_save
+        CP EV_REASON
+        JP Z,el_reas
+        CP EV_TEMP1
+        JP C,el_temp
+        CP EV_SCROLLD
+        JP Z,el_scd
+        CP EV_SCROLLU
+        JP Z,el_scu
+        JP el_loop
+el_char:
+        LD (el_ch),A
+        LD A,(el_len)
+        CP 30
+        JR NC,el_loop
+        LD E,A
+        LD D,0
+        LD HL,IBUF
+        ADD HL,DE
+        LD A,(el_ch)
+        LD (HL),A
+        CALL el_inc
+        ; a lezaro 0xFF az uj vegre (kulonben a visszhang tombol)
+        LD A,(el_len)
+        LD E,A
+        LD D,0
+        LD HL,IBUF
+        ADD HL,DE
+        LD (HL),0xFF
+        JP el_redraw
+el_ch:  DB 0
+el_space:
+        LD A,(el_len)
+        CP 30
+        JR NC,el_loop
+        LD E,A
+        LD D,0
+        LD HL,IBUF
+        ADD HL,DE
+        XOR A
+        LD (HL),A
+        CALL el_inc
+        LD A,(el_len)
+        LD E,A
+        LD D,0
+        LD HL,IBUF
+        ADD HL,DE
+        LD (HL),0xFF
+        JP el_redraw
+el_rub:
+        LD A,(el_len)
+        OR A
+        JR Z,el_redraw
+        DEC A
+        LD (el_len),A
+        LD E,A
+        LD D,0
+        LD HL,IBUF
+        ADD HL,DE
+        LD (HL),0xFF
+        JP el_redraw
+el_enter:
+        LD A,(el_len)
+        LD E,A
+        LD D,0
+        LD HL,IBUF
+        ADD HL,DE
+        LD (HL),0xFF
+        XOR A
+        LD (IDLEF),A
+        LD A,1
+        LD (ELRET),A
+        JP el_out
+el_save:
+        XOR A
+        LD (IDLEF),A
+        LD A,2
+        LD (ELRET),A
+        JP el_out
+el_reas:
+        LD A,(REAS)
+        XOR 1
+        LD (REAS),A
+        LD A,(STBUF+ST_REAS)
+        XOR 1
+        LD (STBUF+ST_REAS),A
+        CALL state_save
+        JP el_redraw
+el_temp:
+        SUB EV_TEMP1-1      ; 1..4
+        LD (TEMP),A
+        LD A,(TEMP)
+        LD (STBUF+ST_TEMP),A
+        CALL state_save
+        JP el_redraw
+el_scd:
+        LD A,(RINGPG)
+        CP 3
+        JR NC,el_redraw
+        INC A
+        LD (RINGPG),A
+        CALL ring_render
+        JP el_loop
+el_scu:
+        LD A,(RINGPG)
+        OR A
+        JR Z,el_redraw
+        DEC A
+        LD (RINGPG),A
+        CALL ring_render
+        JP el_loop
+el_redraw:
+        CALL draw_status
+        CALL el_draw
+        JP el_loop
+el_inc:
+        LD A,(el_len)
+        INC A
+        LD (el_len),A
+        RET
+el_out:
+        LD A,(el_sr)
+        LD (CRT_ROW),A
+        LD A,(el_sc)
+        LD (CRT_COL),A
+        POP AF
+        POP BC
+        POP DE
+        POP HL
+        RET
+el_sr:  DB 0
+el_sc:  DB 0
+
+; ------------------------------------------------------------------
+; el_draw — beviteli sor: "> " + puffer + kurzor + tippsor
+el_draw:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        PUSH AF
+        LD A,ROW_IN
+        CALL clrrow
+        LD A,ROW_IN+1
+        CALL clrrow
+        LD A,ROW_IN
+        LD C,0
+        CALL con_goto
+        LD HL,TXT_PROMPT
+        CALL con_print
+        LD A,ROW_IN
+        LD C,2
+        CALL con_goto
+        LD HL,IBUF
+        LD B,0
+eld1:   LD A,(HL)
+        CP 0xFF
+        JR Z,eld2
+        PUSH HL
+        PUSH BC
+        CALL con_putc
+        POP BC
+        POP HL
+        INC HL
+        INC B
+        JR eld1
+eld2:   ; kurzor: inverz cella a szöveg után
+        LD A,B
+        ADD A,2
+        LD C,A
+        LD A,ROW_IN
+        LD B,0x80
+        CALL cellwrite
+        POP AF
+        POP BC
+        POP DE
+        POP HL
+        RET
+TXT_PROMPT:
+        DZ "> "
+        DB 0xFF
+
+; ------------------------------------------------------------------
+; check_command — szöveges parancsok: SAVE / TOPIC N / QUIT / TIME
+cc_i:   DB 0
+check_command:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        PUSH AF
+        LD HL,IBUF
+        LD A,(HL)
+        CP 0xFF
+        JR Z,cc_none
+        ; "SAVE"
+        LD HL,TXT_CMD_SAVE
+        CALL bufhas
+        OR A
+        JR NZ,cc_save
+        ; "TOPIC"
+        LD HL,TXT_CMD_TOPIC
+        CALL bufhas
+        OR A
+        JR NZ,cc_topic
+        ; "QUIT"
+        LD HL,TXT_CMD_QUIT
+        CALL bufhas
+        OR A
+        JR NZ,cc_quit
+cc_none:
+        XOR A
+        LD (ELRET),A
+        LD A,1
+        LD (ELRET),A
+        JR cc_out
+cc_save:
+        LD A,2
+        LD (ELRET),A
+        JR cc_out
+cc_quit:
+        XOR A
+        LD (ELRET),A
+        LD (QUITF),A
+        JR cc_out
+cc_topic:
+        ; a TOPIC utáni szám: 1..NAMETAB_N
+        LD A,0
+        LD (cc_i),A
+        LD HL,IBUF
+cct1:   LD A,(HL)
+        CP 0xFF
+        JR Z,cct_no
+        CP 0x00
+        JR Z,cct2
+        INC HL
+        JR cct1
+cct2:   ; HL az első szóköz után: számjegyek
+        INC HL
+        LD A,(HL)
+        CP 0xFF
+        JR Z,cct_no
+        SUB 0x1C
+        JR C,cct_no
+        CP 10
+        JR NC,cct_no
+        INC A               ; 1 alapú
+        LD (TOPID),A
+        ; név a 2-es sorba: NAMETAB + (TOPID-1)*8 -> NAMESLOT cél
+        CALL write_topic_name
+        LD A,3
+        LD (ELRET),A
+        JR cc_out
+cct_no: XOR A
+        LD (ELRET),A
+        LD A,1
+        LD (ELRET),A
+cc_out: POP AF
+        POP BC
+        POP DE
+        POP HL
+        LD A,(ELRET)
+        RET
+QUITF:  DB 0
+TXT_CMD_SAVE:
+        DZ "SAVE"
+        DB 0xFF
+TXT_CMD_TOPIC:
+        DZ "TOPIC"
+        DB 0xFF
+TXT_CMD_QUIT:
+        DZ "QUIT"
+        DB 0xFF
+
+; ------------------------------------------------------------------
+; write_topic_name — a TOPID-1-edik név a 2-es sor LOAD-mezőjébe
+; (a NAMESLOT DW-t a builder patcheli a tényleges címre)
+wt_i:   DB 0
+write_topic_name:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        PUSH AF
+        LD A,(TOPID)
+        OR A
+        JR Z,wtn_none
+        DEC A
+        CP NAMETAB_N
+        JR NC,wtn_none
+        ; forrás: NAMETAB + A*8
+        ADD A,A
+        ADD A,A
+        ADD A,A
+        LD E,A
+        LD D,0
+        LD HL,NAMETAB
+        ADD HL,DE
+        LD (wtn_src),HL
+        ; cél: (NAMESLOT) — a DW-ből olvassuk
+        LD HL,(NAMESLOT)
+        LD (wtn_dst),HL
+        LD B,8
+wtn1:   LD HL,(wtn_src)
+        LD A,(HL)
+        INC HL
+        LD (wtn_src),HL
+        LD HL,(wtn_dst)
+        LD (HL),A
+        INC HL
+        LD (wtn_dst),HL
+        DJNZ wtn1
+wtn_none:
+        POP AF
+        POP BC
+        POP DE
+        POP HL
+        RET
+wtn_src: DW 0
+wtn_dst: DW 0
+
+; ------------------------------------------------------------------
+; thinking — gondolkodás-sáv animáció + abort (RUBOUT) + órajárás
+; a T0FR a válaszidő-mérés nullapontja
+th_ph:  DB 0
+th_fr:  DB 0
+thinking:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        PUSH AF
+        XOR A
+        LD (ABORTF),A
+        LD HL,(FRAMESV)
+        LD (T0FR),HL
+        ; a gondolkodási hossz: REAS=1 -> 3 fázis-kör, REAS=0 -> 1 kör
+        LD A,(REAS)
+        OR A
+        LD A,12
+        JR NZ,th0
+        LD A,4
+th0:    LD (th_tot),A
+        XOR A
+        LD (th_ph),A
+th1:    LD A,(th_ph)
+        CALL think_bar
+        ; ~6 képkocka fázisonként, közben óra + abort-ellenőrzés
+        LD A,6
+        LD (th_fr),A
+th2:    CALL clk_tick
+        CALL getevent
+        CP EV_RUBOUT
+        JR Z,th_abort
+        LD A,(th_fr)
+        DEC A
+        LD (th_fr),A
+        JR NZ,th2
+        LD A,(th_ph)
+        INC A
+        LD (th_ph),A
+        LD B,A
+        LD A,(th_tot)
+        CP B
+        JR NC,th1
+        JP th_out
+th_abort:
+        LD A,1
+        LD (ABORTF),A
+th_out: POP AF
+        POP BC
+        POP DE
+        POP HL
+        RET
+th_tot: DB 0
+
+; ------------------------------------------------------------------
+; ring_init / ring_capture / ring_render — chat-gyűrű (görgetés)
+; bejegyzés: [hossz][ZX-kódok...]; a CAPBUF-ból másolunk
+ring_init:
+        LD HL,CHATR
+        LD (RINGH),HL
+        XOR A
+        LD (RINGN),A
+        LD (RINGPG),A
+        RET
+
+ring_capture:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        PUSH AF
+        ; CAPLEN = CAPHL - CAPBUF
+        LD HL,(CAPHL)
+        LD DE,CAPBUF
+        OR A
+        SBC HL,DE
+        LD A,L
+        OR A
+        JP Z,rc_out
+        CP 200
+        JP C,rc1
+        LD A,200
+rc1:    LD (rc_len),A
+        ; hely van-e? (CHATR_END - RINGH) >= len+2
+        LD HL,CHATR_END
+        LD DE,(RINGH)
+        OR A
+        SBC HL,DE
+        LD A,(rc_len)
+        ADD A,2
+        LD B,A
+        LD A,H
+        OR A
+        JR NZ,rc2
+        LD A,L
+        CP B
+        JP C,rc_compact
+rc2:    ; bejegyzés a RINGH-tól: [len][kódok...]
+        LD DE,(RINGH)
+        LD A,(rc_len)
+        LD (DE),A
+        INC DE
+        LD HL,CAPBUF
+        LD B,A
+rc3:    LD A,(HL)
+        LD (DE),A
+        INC HL
+        INC DE
+        DJNZ rc3
+        LD (RINGH),DE
+        LD A,(RINGN)
+        INC A
+        JP NZ,rc4
+        DEC A
+rc4:    LD (RINGN),A
+        JP rc_out
+        ; --- a gyűrő megtelt: a legrégebbi fel eldobása
+rc_compact:
+        LD HL,(RINGH)
+        LD DE,CHATR
+        OR A
+        SBC HL,DE          ; használt bájtok
+        SRL H
+        RR L               ; fele
+        LD DE,CHATR
+        ADD HL,DE
+        LD (rc_mid),HL
+        LD HL,CHATR
+rcc1:   LD DE,(rc_mid)
+        OR A
+        SBC HL,DE
+        ADD HL,DE
+        JP NC,rcc2
+        LD C,(HL)
+        INC C
+        LD B,0
+        ADD HL,BC
+        JR rcc1
+rcc2:   ; HL = új kezdő cím
+        LD (rcc_src),HL
+        LD HL,(RINGH)
+        LD DE,(rcc_src)
+        OR A
+        SBC HL,DE          ; másolandó hossz
+        LD A,L
+        LD (rc_n),A
+        OR A
+        JR Z,rcc3
+        LD HL,(rcc_src)
+        LD DE,CHATR
+        LD B,0
+        LD C,A
+        LDIR
+rcc3:   LD HL,CHATR
+        LD A,(rc_n)
+        LD E,A
+        LD D,0
+        ADD HL,DE
+        LD (RINGH),HL
+        LD A,(RINGN)
+        SRL A              ; a darabszám fele
+        LD (RINGN),A
+        JP rc2
+rc_out: POP AF
+        POP BC
+        POP DE
+        POP HL
+        RET
+rc_len: DB 0
+rcc_src: DW 0
+rcc_end: DW 0
+rc_mid: DW 0
+rc_src: DW 0
+rc_n:   DB 0
+
+; ------------------------------------------------------------------
+; ring_render — a gyűrő utolsó (vagy RINGPG-szor régebbi) 14 üzenete
+; a konzol soraira (a görgetés: SHIFT+5 = régebbi, SHIFT+6 = újabb)
+rgt: DB 0
+rgp:   DW 0
+rgi:   DB 0
+rgc: DB 0
+ring_render:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        PUSH AF
+        CALL init_screen
+        ; cél-index = RINGN - 14*(RINGPG+1), minimum 0
+        LD A,(RINGPG)
+        INC A
+        LD B,A
+        XOR A
+rg0:    ADD A,14
+        DJNZ rg0
+        LD B,A
+        LD A,(RINGN)
+        SUB B
+        JR NC,rg1
+        XOR A
+rg1:    LD (rgt),A
+        LD HL,CHATR
+        LD (rgp),HL
+        XOR A
+        LD (rgi),A
+        LD A,14
+        LD (rgc),A
+rg2:    LD HL,(rgp)
+        LD DE,(RINGH)
+        OR A
+        SBC HL,DE
+        ADD HL,DE
+        JR NC,rg_done
+        LD A,(rgi)
+        LD B,A
+        LD A,(rgt)
+        CP B
+        JP Z,rg_print
+        LD C,(HL)
+        INC C
+        LD B,0
+        ADD HL,BC
+        LD (rgp),HL
+        LD A,(rgi)
+        INC A
+        LD (rgi),A
+        JR rg2
+rg_print:
+        LD A,(HL)
+        LD B,A
+        INC HL
+        LD (rgp),HL
+rg3:    LD A,(HL)
+        CALL con_putc
+        INC HL
+        DJNZ rg3
+        LD (rgp),HL
+        LD A,(rgi)
+        INC A
+        LD (rgi),A
+        LD (rgt),A
+        LD A,(rgc)
+        DEC A
+        LD (rgc),A
+        JP Z,rg_done
+        JR rg2
+rg_done:
+        POP AF
+        POP BC
+        POP DE
+        POP HL
+        RET
+
+; ------------------------------------------------------------------
+; ask_profile — első futás: év, hó, nap, óra, perc, név, nem, születési év
+ap_y:   DB 0
+ap_m:   DB 0
+ap_d:   DB 0
+ask_profile:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        PUSH AF
+        ; STBUF nullázás + mágia
+        LD HL,STBUF
+        LD B,ST_LEN
+        XOR A
+apz:    LD (HL),A
+        INC HL
+        DJNZ apz
+        LD A,'P'
+        LD (STBUF+ST_MAGIC),A
+        LD A,'K'
+        LD (STBUF+ST_MAGIC+1),A
+        LD A,'1'
+        LD (STBUF+ST_MAGIC+2),A
+        LD A,1
+        LD (STBUF+ST_VER),A
+        LD A,2
+        LD (STBUF+ST_TEMP),A
+        LD A,1
+        LD (STBUF+ST_REAS),A
+        LD A,2
+        LD (TEMP),A
+        LD A,1
+        LD (REAS),A
+        CALL con_nl
+        LD HL,TXT_PR_HELLO
+        CALL con_print
+        CALL con_nl
+        ; év
+        LD HL,TXT_PR_YEAR
+        CALL con_print
+        CALL getnum
+        LD (ap_y),A
+        ; hónap
+        LD HL,TXT_PR_MON
+        CALL con_print
+        CALL getnum
+        LD (ap_m),A
+        ; nap
+        LD HL,TXT_PR_DAY
+        CALL con_print
+        CALL getnum
+        LD (ap_d),A
+        ; óra, perc
+        LD HL,TXT_PR_HOUR
+        CALL con_print
+        CALL getnum
+        LD (STBUF+ST_HOUR),A
+        LD HL,TXT_PR_MIN
+        CALL con_print
+        CALL getnum
+        LD (STBUF+ST_MINU),A
+        ; név
+        LD HL,TXT_PR_NAME
+        CALL con_print
+        CALL getline_p
+        ; nem
+        LD HL,TXT_PR_GEN
+        CALL con_print
+ap_g:   CALL clk_tick
+        CALL getevent
+        CP 0x32           ; 'M' ZX-kód
+        JR Z,ap_mf
+        CP 0x2B           ; 'F' ZX-kód
+        JR Z,ap_mf
+        JR ap_g
+ap_mf:  CP 0x2B           ; 'F' ZX-kód
+        JR NZ,ap_male
+        LD A,(STBUF+ST_BITS)
+        OR BIT_FEMALE
+        LD (STBUF+ST_BITS),A
+        JR ap_done
+ap_male:
+        LD A,(STBUF+ST_BITS)
+        AND 255-BIT_FEMALE
+        LD (STBUF+ST_BITS),A
+ap_done:
+        ; a profil-nap (DAY0) kiszámítása az év/hó/napból
+        CALL ap_day0
+        POP AF
+        POP BC
+        POP DE
+        POP HL
+        RET
+TXT_PR_HELLO:
+        DZ "FIRST RUN. LETS SET YOU UP."
+        DB 0xFF
+TXT_PR_YEAR:
+        DZ "YEAR? "
+        DB 0xFF
+TXT_PR_MON:
+        DZ "MONTH? "
+        DB 0xFF
+TXT_PR_DAY:
+        DZ "DAY? "
+        DB 0xFF
+TXT_PR_HOUR:
+        DZ "HOUR? "
+        DB 0xFF
+TXT_PR_MIN:
+        DZ "MINUTE? "
+        DB 0xFF
+TXT_PR_NAME:
+        DZ "YOUR NAME? "
+        DB 0xFF
+TXT_PR_GEN:
+        DZ "GENDER M/F? "
+        DB 0xFF
+
+; ------------------------------------------------------------------
+; getnum — egy 1..3 jegyű szám bekérése (karakterenként); A = érték
+gn_v:   DB 0
+gn_n:   DB 0
+gn_d:   DB 0
+getnum:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        PUSH AF
+        XOR A
+        LD (gn_v),A
+        LD (gn_n),A
+gn1:    CALL clk_tick
+        CALL getevent
+        OR A
+        JR Z,gn1
+        CP EV_ENTER
+        JP Z,gn_done
+        CP EV_RUBOUT
+        JP Z,gn_rub
+        CP 0x1C
+        JR C,gn1
+        CP 0x1C+10
+        JR NC,gn1
+        LD (gn_d),A
+        CALL con_putc
+        LD A,(gn_v)
+        LD B,A
+        ADD A,A
+        ADD A,A
+        ADD A,A
+        ADD A,B
+        ADD A,B
+        LD B,A              ; B = v*10
+        LD A,(gn_d)
+        SUB 0x1C
+        ADD A,B
+        LD (gn_v),A
+        JR gn1
+gn_rub: LD A,(gn_n)
+        OR A
+        JR Z,gn1
+        CALL gn_bs
+        JR gn1
+gn_done:
+        LD A,(gn_v)
+        LD (gn_v),A
+        CALL con_nl
+        LD A,(gn_v)
+        JP gn_out
+gn_out: POP AF
+        POP BC
+        POP DE
+        POP HL
+        RET
+gn_bs:  PUSH AF
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        LD A,(CRT_COL)
+        OR A
+        JR Z,gnb1
+        DEC A
+        LD (CRT_COL),A
+gnb1:   POP BC
+        POP DE
+        POP HL
+        POP AF
+        RET
+
+; ------------------------------------------------------------------
+; getline_p — név beolvasása az IBUF-ba (max 8), STBUF+ST_NAME-be
+getline_p:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        PUSH AF
+        XOR A
+        LD (el_len),A
+        LD HL,IBUF
+        LD (HL),0xFF
+glp_c:  DB 0
+glp1:   CALL clk_tick
+        CALL getevent
+        OR A
+        JR Z,glp1
+        CP EV_ENTER
+        JP Z,glp2
+        CP EV_RUBOUT
+        JP Z,glp_rub
+        CP EV_SPACE
+        JR Z,glp1
+        CP 0x80
+        JR NC,glp1
+        LD (el_ch),A
+        LD A,(el_len)
+        CP 8
+        JR NC,glp1
+        LD E,A
+        LD D,0
+        LD HL,IBUF
+        ADD HL,DE
+        LD (glp_c),A
+        LD A,(el_len)
+        CP 8
+        JR NC,glp1
+        LD E,A
+        LD D,0
+        LD HL,IBUF
+        ADD HL,DE
+        LD A,(glp_c)
+        LD (HL),A
+        LD A,(glp_c)
+        CALL con_putc
+        JR glp1
+glp_rub:
+        LD A,(el_len)
+        OR A
+        JR Z,glp1
+        DEC A
+        LD (el_len),A
+        JR glp1
+glp2:   ; másolás IBUF -> STBUF+ST_NAME (8 bájt, 0-val töltve)
+        LD HL,STBUF+ST_NAME
+        LD B,8
+        XOR A
+glp3:   LD (HL),A
+        INC HL
+        DJNZ glp3
+        LD HL,STBUF+ST_NAME
+        LD DE,IBUF
+        LD B,8
+glp4:   LD A,(DE)
+        CP 0xFF
+        JR Z,glp5
+        CP 0x00
+        JR Z,glp5
+        LD (HL),A
+        INC HL
+        INC DE
+        DJNZ glp4
+glp5:   CALL con_nl
+        POP AF
+        POP BC
+        POP DE
+        POP HL
+        RET
+
+; ------------------------------------------------------------------
+; ap_day0 — DAY0 = (ev-2000)*365 + szokonapok + ev napja
+; (v0.1: ev 2000..2099; a honapok osszege a MDAYS tablabol)
+ap_day0:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        PUSH AF
+        LD A,(ap_y)
+        AND 0x7F
+        LD B,A              ; ev-2000
+        LD HL,0
+apd1:   LD A,B
+        OR A
+        JP Z,apd2
+        LD DE,365
+        ADD HL,DE
+        DEC B
+        JP apd1
+apd2:   ; szokonapok: (ev-2000)/4 + 1 (a 2000 maga szokoev)
+        LD A,(ap_y)
+        AND 0x7F
+        SRL A
+        SRL A
+        LD E,A
+        LD D,0
+        ADD HL,DE
+        INC HL
+        ; ev napja a honapokbol
+        LD A,(ap_m)
+        LD B,A
+        LD DE,MDAYS
+apd3:   LD A,B
+        OR A
+        JR Z,apd4
+        DEC B
+        LD A,(DE)
+        LD C,A
+        LD A,0
+        ADD A,L
+        ADD A,C
+        LD L,A
+        JR NC,apd3
+        INC H
+        JP apd3
+apd4:   LD A,(ap_d)
+        ADD A,L
+        LD L,A
+        JP NC,apd5
+        INC H
+apd5:   LD (STBUF+ST_DAY0),HL
+        LD (STDAY0),HL
+        ; szuletesi ev elmentese
+        LD A,(ap_y)
+        SUB 1900&0xFF
+        LD (STBUF+ST_BIRTH),A
+        POP AF
+        POP BC
+        POP DE
+        POP HL
+        RET
+
+; ------------------------------------------------------------------
+; stbuf_to_vars — a betöltött STBUF mezői a futási változókba
+stbuf_to_vars:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        PUSH AF
+        LD A,(STBUF+ST_TEMP)
+        LD (TEMP),A
+        LD A,(STBUF+ST_REAS)
+        LD (REAS),A
+        LD HL,(STBUF+ST_DAY0)
+        LD (STDAY0),HL
+        LD HL,(STBUF+ST_CLKM)
+        LD (CLOCKMIN),HL
+        LD A,(STBUF+ST_TOPIC)
+        LD (TOPID),A
+        CALL dayno_calc
+        POP AF
+        POP BC
+        POP DE
+        POP HL
+        RET
+
+; ------------------------------------------------------------------
+; stbuf_save_all — futási változók -> STBUF -> D_FILE (6 bites csomag)
+stbuf_save_all:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        PUSH AF
+        LD A,(TEMP)
+        LD (STBUF+ST_TEMP),A
+        LD A,(REAS)
+        LD (STBUF+ST_REAS),A
+        LD A,(TOPID)
+        LD (STBUF+ST_TOPIC),A
+        LD HL,(CLOCKMIN)
+        LD (STBUF+ST_CLKM),HL
+        LD A,(RINGN)
+        LD (STBUF+ST_RINGN),A
+        CALL state_save
+        POP AF
+        POP BC
+        POP DE
+        POP HL
+        RET
+
+; ------------------------------------------------------------------
+; age_events — a munkamenetek között eltelt napok az eseménykorokhoz
+age_events:
+        PUSH HL
+        PUSH DE
+        PUSH BC
+        PUSH AF
+        ; eltelt nap = (DAYNO - STDAY0 - CLOCKMIN/1440) — v0.1: 0
+        ; (a ZX81 nem ismeri a falamenti időt; l. docs)
+        LD A,0
+        CALL event_age
+        POP AF
+        POP BC
+        POP DE
+        POP HL
+        RET
