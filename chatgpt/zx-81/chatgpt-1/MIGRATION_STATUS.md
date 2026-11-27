@@ -1,39 +1,47 @@
 # ChatGPT 1 — ZX81 migration status
 
-## Status: TERRAIN PREPARED
+## Status: MIGRATED
 
-The new model-first repository is ready for ChatGPT 1:
+The ChatGPT 1 ZX81 PICO AI project artifacts have been copied into the new model-first repository.
+
+Destination workspace:
 
 `chatgpt/zx-81/chatgpt-1/`
 
-### Completed
+Project payload:
 
-- New repository created and structured.
-- ChatGPT 1 workspace reserved as the primary ZX81 workspace.
-- ChatGPT 2 workspace reserved separately.
-- Migration rules documented.
-- Legacy ChatGPT 1 workspace identified.
-- GLM and GROK material explicitly excluded from this migration.
-- Historical control artifacts and known-good hashes recorded.
-- Binary-transfer limitation identified before copying any binary data.
+`pico-ai/`
 
-### Not yet completed
+Migration commit:
 
-- Full source-tree copy.
-- Binary `.T81` / `.P` transfer.
-- Final source/destination inventory reconciliation.
-- Migration completion marker.
+`9867e5fd28f5a8a6856fd7ced0ce44d99f632151`
 
-### Important
+### Migrated
 
-The legacy repository remains the authoritative historical control until reconciliation is complete. Nothing is to be deleted from it as part of this preparation.
+- ChatGPT 1 project documentation and historical control notes.
+- PICO / Retro TinyLLM build outputs.
+- ZX81 assembly sources.
+- R5 modular sources.
+- AI16 source and control artifacts.
+- T81 and P files.
+- Test artifacts.
+- Build and validation tools.
 
-## Workspace ownership
+The transferred Git blobs retain the same SHA values as the source repository, providing a byte/content identity check for the migrated artifacts.
 
-| Workspace | Owner | Status |
-|---|---|---|
-| `chatgpt/zx-81/chatgpt-1/` | ChatGPT 1 | Active migration target |
-| `chatgpt/zx-81/chatgpt-2/` | ChatGPT 2 | Reserved |
-| `glm/zx-81/` | GLM | Not touched |
-| `grok/zx-81/` | Grok | Not touched |
-| `mistral/zx-81/` | Mistral | Not touched |
+### Explicitly excluded
+
+- GLM material.
+- GROK material.
+- Mistral-owned work outside the ChatGPT 1 project payload.
+- ChatGPT 2 workspace.
+
+### Legacy policy
+
+The original `CHATGPT1/` workspace in `ZX81-AI-micro-language-model` remains untouched and is retained as the historical control copy.
+
+Nothing was deleted from the source repository.
+
+### Next step
+
+Future ChatGPT 1 development should take place in this new workspace. The legacy copy should be treated as a read-only forensic reference unless a deliberate archival change is required.
