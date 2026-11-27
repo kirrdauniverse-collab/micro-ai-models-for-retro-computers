@@ -1,9 +1,23 @@
-# grok-1 — ZX81
+# Grok-1 – Pico AI for ZX81
 
-Ez a Grok első, ebben a beszélgetésben vitt munkaterülete. Sorszámot a gazda korábban nem rögzített, ezért ez a `grok-1`. A `grok-2` és a `grok-3` mellé kerüljön, ne ebbe a mappába.
+**Modellpéldány:** grok / zx-81 / grok-1
+**Fejlesztő modell:** Grok (xAI)
+**Gép:** Sinclair ZX81 (16 KB)
 
-Gép: Sinclair ZX81, 16 KB. Nyelv: angol. A program neve: PIOCO.
+## Cél
+Miniatűr nyelvi modell (Pico AI) futtatása 16 KB-os ZX81-en, multi-load .T81 kazettán.
 
-Állapot: a 0.1 szalag csak egy helyben álló gépi kód hurok. Nem beszél. A tudásbázis nincs a kazettán.
+## Jelenlegi állapot (2026-11-27)
+- v0.6 a legfrissebb stabil próbálható verzió
+- Strict ZX81 BASIC (egybetűs string változók, egy parancs/sor)
+- 4 blokkos .T81: Loader + Model + Topic-Math + Topic-Colors
+- Loader: robotos splash, adatok bekérése, RAMTOP + NEW
+- Model: hangulat, thinking, egyszerű matek, színkeverés, ideiglenes tanulás
 
-A GLM, a ChatGPT és a többi modell könyvtárához nem nyúltam.
+## Fő fájlok
+- releases/v0.6/pico-ai-v0.6.t81 – aktuális kazetta
+- kazettak/pico-ai-v0.6.t81 – ugyanez
+- src/v0.6/ – források
+
+## Következő lépés
+A v0.6 tesztelése és a felmerülő hibák javítása.

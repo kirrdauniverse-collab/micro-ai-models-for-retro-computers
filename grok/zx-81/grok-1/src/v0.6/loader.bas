@@ -1,0 +1,92 @@
+10 REM PICO AI LOADER V0.6
+20 REM Strict ZX81 BASIC
+
+100 CLS
+110 PRINT "      +----------+"
+120 PRINT "      |  O    O  |"
+130 PRINT "      |    ..    |"
+140 PRINT "      |  ------  |"
+150 PRINT "      +----------+"
+160 PRINT
+170 PRINT "     **** PICO AI ****"
+180 PRINT "   ZX81 Micro Language Model"
+190 PRINT
+200 PRINT " Made with help by Safar Sandor"
+210 PRINT
+220 PRINT " H = Help    any key = Start"
+230 PAUSE 4E4
+240 IF INKEY$="H" THEN GOTO 2000
+250 IF INKEY$="h" THEN GOTO 2000
+
+300 CLS
+310 PRINT "PERSONAL DATA"
+320 PRINT "----------------"
+330 PRINT
+340 PRINT "Name (max 12)?"
+350 INPUT N$
+360 IF N$="" THEN LET N$="Friend"
+370 IF LEN N$>12 THEN LET N$=N$( TO 12)
+
+380 PRINT
+390 PRINT "Gender M/F ?"
+400 INPUT G$
+410 IF G$="" THEN LET G$="M"
+420 LET G$=G$(1)
+430 IF G$="m" THEN LET G$="M"
+440 IF G$="f" THEN LET G$="F"
+450 IF G$<>"M" AND G$<>"F" THEN LET G$="M"
+
+460 PRINT
+470 PRINT "Date (any format)?"
+480 INPUT D$
+490 IF D$="" THEN LET D$="01/01/2026"
+
+500 PRINT
+510 PRINT "Time (any format)?"
+520 INPUT T$
+530 IF T$="" THEN LET T$="12:00"
+
+600 CLS
+610 PRINT "YOU ENTERED:"
+620 PRINT "----------------"
+630 PRINT "Name   : ";N$
+640 PRINT "Gender : ";G$
+650 PRINT "Date   : ";D$
+660 PRINT "Time   : ";T$
+670 PRINT
+680 PRINT "Correct (Y/N)?"
+690 INPUT C$
+700 IF C$="N" THEN GOTO 300
+710 IF C$="n" THEN GOTO 300
+
+800 CLS
+810 PRINT "NEXT STEPS"
+820 PRINT "----------------"
+830 PRINT "1. I set RAMTOP"
+840 PRINT "2. I do NEW"
+850 PRINT "3. Type LOAD """""
+860 PRINT "   and start tape"
+870 PRINT
+880 PRINT "Model loads next."
+890 PRINT
+900 PRINT "Press ENTER..."
+910 INPUT A$
+
+1000 POKE 16388,48
+1010 POKE 16389,117
+1020 PRINT "RAMTOP set. NEW..."
+1030 PAUSE 80
+1040 NEW
+
+2000 CLS
+2010 PRINT "HELP"
+2020 PRINT "----------------"
+2030 PRINT "Asks name, gender,"
+2040 PRINT "date, time."
+2050 PRINT "Then RAMTOP + NEW."
+2060 PRINT "After NEW type:"
+2070 PRINT "  LOAD """""
+2080 PRINT
+2090 PRINT "Press any key..."
+2100 PAUSE 4E4
+2110 GOTO 100

@@ -1,17 +1,20 @@
-# Költöztetési jegyzék — grok-1
+# Migration Manifest – grok-1
 
-Dátum: 2026-11-27
-Honnan: `kirrdauniverse-collab/PIOCO-AI-miniature-language-modell`
-Hova: `kirrdauniverse-collab/micro-ai-models-for-retro-computers` `grok/zx-81/grok-1/`
+**Dátum:** 2026-11-27
+**Forrás repók:**
+- kirrdauniverse-collab/ZX81-AI-micro-language-modell (régi, TOROLHETO.TXT-vel megjelölve)
+- kirrdauniverse-collab/ZX81-AI-micro-language-model/GROK1
+- Helyi: /home/workdir/artifacts/GROK/GROK1
 
-| Régi útvonal | Új útvonal | Eredet |
-| --- | --- | --- |
-| `docs/GROK-dontesek.md` | `dokumentacio/GROK-dontesek.md` | commit `bc7fe05`, tartalom azonos |
-| `tudas/GROK-szavak.txt` | `tudas/GROK-szavak.txt` | commit `bc7fe05`, tartalom azonos |
-| `eszkozok/GROK_t81.py` | `forras/GROK_t81.py` | nem volt a GitHubon, munkamenetből |
-| `kazetta/pioco-by-GROK-0.1.p` | `kazettak/pioco-by-GROK-0.1.p` | a forrás újra előállította |
-| `kazetta/pioco-by-GROK-0.1.t81` | `kazettak/pioco-by-GROK-0.1.t81` | a forrás újra előállította |
-| `docs/pioco-by-GROK-0.1.md` | `dokumentacio/pioco-by-GROK-0.1.md` | rövidítve újraírva, a lényeg ugyanaz |
-| betöltés-jegyzőkönyv | `jegyzokonyv/2026-11-23-toltes.txt` | a 2026-11-23-i futás szövege |
+**Cél:** kirrdauniverse-collab/micro-ai-models-for-retro-computers/grok/zx-81/grok-1/
 
-A GLM `motor/`, `eszkozok/`, `kazetta/pioco-0.*.p` fájljait nem másoltam és nem módosítottam.
+## Átmásolt fontos elemek
+- releases/v0.1/  (loader-ek, demo chat, korai T81-ek)
+- releases/v0.5/  (pico-ai-v0.5.t81)
+- releases/v0.6/  (pico-ai-v0.6.t81 + topic blokkok)  ← aktuális
+- src/v0.5/, src/v0.6/, src/engine/
+- docs/ (memóriatérkép, T81 struktúra, bigram terv, stb.)
+- kazettak/ mappába is bemásolva a v0.5 és v0.6 T81
+
+## Megjegyzés
+A korábbi (más Grok-példánytól származó) pioco-by-GROK-0.1.* fájlok érintetlenül maradtak.

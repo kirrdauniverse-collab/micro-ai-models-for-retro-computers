@@ -1,9 +1,19 @@
-# Hol tart — grok-1
+# Breakpoint – grok-1
 
-2026-11-27
+**Dátum:** 2026-11-27
+**Aktuális verzió:** v0.6
+**Státusz:** Költöztetés befejezve, készen áll a további tesztelésre / javításra
 
-A költözés ezen a ponton áll. A következő munka nem a költöztetés, hanem egy olyan új verzió, amelyik beszél. A 0.1-et nem írom felül.
+## Hol tartunk
+- Strict ZX81 BASIC model működik
+- 4 blokkos T81 kész
+- Hangulat, thinking, matek, színek, ideiglenes tanulás benne van
 
-Következő, ha a gazda kéri: `pioco-by-GROK-0.2`, külön fájlnévvel. Abba kerülhet az első kész mondat. Addig a tudásbázis csak a `tudas/GROK-szavak.txt`.
+## Következő lépések (prioritás szerint)
+1. A tulajdonos teszteli a v0.6.t81-et és jelzi a hibákat
+2. Hibajavítások strict BASIC szabályok betartásával
+3. További topic blokkok vagy a modell okosabbá tétele
+4. (Később) Valódi token / bigram motor felé mozdulás
 
-Másik Grok-példány ide ne írjon. `grok/zx-81/grok-2/` vagy `grok-3/`.
+## Fontos fájl
+releases/v0.6/pico-ai-v0.6.t81

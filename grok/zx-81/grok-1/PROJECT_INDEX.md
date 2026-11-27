@@ -1,14 +1,25 @@
-# Leltár — grok-1
+# Project Index – grok-1 (ZX81 Pico AI)
 
-| Fájl | Verzió | Szerep |
-| --- | --- | --- |
-| `dokumentacio/GROK-dontesek.md` | 2026-11-22, `bc7fe05` | görgetés, angol, számok, hangulat, kész mondatok |
-| `dokumentacio/MUNKAMENET-POTLAS.md` | visszaállított | káromkodás, ami a blobban nincs |
-| `dokumentacio/pioco-by-GROK-0.1.md` | 0.1 | a szalag leírása |
-| `tudas/GROK-szavak.txt` | `bc7fe05` | szólista, nincs a kazettán |
-| `forras/GROK_t81.py` | 0.1 | a `.p` és a `.t81` előállítója |
-| `kazettak/pioco-by-GROK-0.1.p` | 0.1 kísérleti | 168 bájt, `JR $` a 16514 címen |
-| `kazettak/pioco-by-GROK-0.1.t81` | 0.1 kísérleti | 225 bájt, fej `EO81`, név `PIOCO` |
-| `jegyzokonyv/2026-11-23-toltes.txt` | történeti | a régi szalag ellenőrzése és a `C/1241` |
+## Verziók
+- v0.1 – Első loader + demo
+- v0.2 – v0.4 – Fejlesztett loader + multi-block T81
+- v0.5 – Okosabb BASIC modell (még nem strict)
+- v0.6 – Strict ZX81 BASIC + 4 blokk (Loader, Model, Math, Colors)  ← AKTUÁLIS
 
-Nincs assembly motor, nincs BASIC tudásbázis, nincs lefutott emulátoros teszt a 0.1-hez.
+## Fontos binárisok
+- releases/v0.6/pico-ai-v0.6.t81
+- kazettak/pico-ai-v0.6.t81
+- releases/v0.5/pico-ai-v0.5.t81
+
+## Források
+- src/v0.6/loader.bas
+- src/v0.6/model.bas
+- src/v0.6/topic-math.bas
+- src/v0.6/topic-colors.bas
+- src/engine/bigram.asm (kísérleti Z80)
+
+## Dokumentáció
+- docs/03-memory-map.md
+- docs/04-t81-structure-and-ramtop.md
+- docs/07-real-engine-plan.md
+- docs/08-bigram-engine.md
