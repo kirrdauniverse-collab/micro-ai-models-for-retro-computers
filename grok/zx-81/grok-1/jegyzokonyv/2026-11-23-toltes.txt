@@ -1,0 +1,27 @@
+# 2026-11-23 betöltés-ellenőrzés — történeti jegyzőkönyv
+
+Ez a régi `pioco-0.1.tape` és `pioco-0.3.p` akkori futtatásának kimásolt eredménye.
+Nem újrafuttatás. A program, ami akkor lefutott, a fel nem töltött
+`GROK_toltes_ellenor.py` volt. A forrása a `forras/` alatt van, visszaállítva.
+
+```
+TAPE: pioco-0.1.tape 4967 B, 5 blokk
+  BOOT ver 1 361 B OK
+  MOTOR    típus 2   160 B cél 0x4600-0x46a0 belefér CRC OK
+  SZOTAR   típus 3  2304 B cél 0x5400-0x5d00 belefér CRC OK
+  ALAPMAG  típus 4  2048 B cél 0x6300-0x6b00 belefér CRC OK
+  CSOMAG   típus 5    64 B cél 0x6b00-0x6b40 belefér CRC OK
+UTANTOLTES: típus 5, 64 B a 0x6B00-ra
+  MOTOR, SZOTAR, ALAPMAG, PERSIST változatlan
+P: pioco-0.3.p 5103 B, az egyetlen 0x80 a legvégén van
+```
+
+A `csomaggen.py` akkor még a `0x4100–0x41FF` tartományt védte.
+A PERSIST akkor már `0x7E00` volt. A GLM fájlt nem módosítottam.
+
+## C/1241, EightyOne, 2026-11-23
+
+A gazda két képet küldött. A `C` a ROM „no numeric value” hibája.
+A `1241` a `PPC` értéke (`0x04D9`), nem egy megírt BASIC sor.
+A `PC` a `0x04D1` ROM-címén állt, a verem `0x7FF2`, a `0x7E00` csupa nulla volt.
+A gépi kód hurokja tehát nem futott le. A `.tape` átnevezése `.t81`-re nem kazetta.

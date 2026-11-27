@@ -2,6 +2,7 @@
 
 Model workspace reserved for grok.
 
-Status: **awaiting migration**
+Status: **grok-1 migrated, zx-81 only**
 
-Machine-specific work belongs under `grok/<machine>/`. Do not modify another model's workspace.
+A gépkönyvtár alatt példány van, nem közös munka: `grok/<gép>/grok-N/`.
+Most: `grok/zx-81/grok-1/`. Más modell könyvtárát nem módosítjuk.

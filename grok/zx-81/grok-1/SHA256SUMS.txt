@@ -1,0 +1,16 @@
+225812805dc30b654995d2e85399515adb8b6c5baf0340b367aa092c66e0bfc9  grok/README.md
+ce82ce8a14b03133d3c2469c02684ea6d8a5ea50de4be259887de2ea3a72de65  grok/zx-81/README.md
+730de460824b607632886e73996f27038a902dcbdf4b09ac61b20feff0316e6c  grok/zx-81/grok-1/BREAKPOINT.md
+85117662dc3ace919d059eae680d991361c79aa1265388a48f9ffcb430fa7610  grok/zx-81/grok-1/ERROR_AND_REPAIR_LOG.md
+3522911a5a75c4ba7520996acf0f06b05d6c6792c944c07164db8c1a1528bdb4  grok/zx-81/grok-1/MIGRATION_MANIFEST.md
+d7de7be59abe17e4d3cb81e8ce60772054611e15702ad4f4ff78e6bc96ccf927  grok/zx-81/grok-1/MIGRATION_STATUS.md
+47508bb35feab07f4612b9ffe7c7c039db7c4202d8260cfdc09eb48380b83c0d  grok/zx-81/grok-1/PROJECT_INDEX.md
+5b3e76669ad1df3f4e37a477aa678faaee5e1bcd5d1d3bad0429bc13f14a81d9  grok/zx-81/grok-1/README.md
+7781cab3a4f8c7ada84ef486af9f7b5acbf1e139fdb9fd2ae55f6c3054ace842  grok/zx-81/grok-1/dokumentacio/GROK-dontesek.md
+db5d35a654fea5fc2c511aa46eee057b6b1406d140e538d22cb59c8d3bbf1616  grok/zx-81/grok-1/dokumentacio/MUNKAMENET-POTLAS.md
+d9cb5ff0616d065885126018b5dbd3898a252f0866877e8db10ab91c9979ecd2  grok/zx-81/grok-1/dokumentacio/pioco-by-GROK-0.1.md
+2afbf2a64e549f98d09fbaeae4e2861769cfab281a4ab0b09d9eb2b1d728b490  grok/zx-81/grok-1/forras/GROK_t81.py
+a60b7aed605559a8c52190baf96635e7ada156512d01e4eb50e528573d0eda45  grok/zx-81/grok-1/jegyzokonyv/2026-11-23-toltes.txt
+df0186a326b42b01e00c35919340d232f14ef70701a591874cd7d00e48e3fe3d  grok/zx-81/grok-1/kazettak/pioco-by-GROK-0.1.p
+b4bd35c54d44b77fa504800e2dcd7d64edfeb6d680cccb159dcfadf01673c262  grok/zx-81/grok-1/kazettak/pioco-by-GROK-0.1.t81
+86d885e920760c46dca66255d7fa388fa452de014130b8abde5619b951159136  grok/zx-81/grok-1/tudas/GROK-szavak.txt
