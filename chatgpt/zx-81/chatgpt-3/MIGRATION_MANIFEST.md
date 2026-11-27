@@ -33,3 +33,19 @@ A local continuity archive was prepared at `/mnt/data/PICOAI_ChatGPT3_Continuity
 - `EightyOne_V141.zip` is an emulator distribution / test tool, not a ChatGPT-authored PICO AI deliverable. It remains with the user.
 - No source-repository files were deleted, renamed or modified.
 - No files from `chatgpt-1`, `chatgpt-2`, GLM, Grok or other model workspaces were copied or changed.
+
+## Destination verification
+
+Each copied file was fetched from the destination branch and its Git blob SHA compared to the source repository blob SHA. All seven comparisons matched exactly:
+
+| File | Destination blob SHA | Result |
+|---|---|---|
+| `ATVETELI_TESZTEK.md` | `24bc92c0d1cc81f2954c7c4396bb7aac091b3151` | MATCH |
+| `FEJLESZTESI_UTITERV.md` | `1fa5fabcaec2cd7c91cebfb20d91d3a281a28818` | MATCH |
+| `FELTOLTOTT_KEZDEMENYEK_AUDIT_2026-11-23.md` | `801d3e159d1f555a1a61660bb70bc581d2d8b85b` | MATCH |
+| `MODELLEKNEK.md` | `6b2d922de1aa87c729df15b68adfaad8ea0e7601` | MATCH |
+| `MUSZAKI_AUDIT_2026-11-22.md` | `401a97142380d0cc4cd6af7dc2cfd775c6f3393f` | MATCH |
+| `README.md` | `4812fe3de20405ff2440137200855e1ab84bd0a0` | MATCH |
+| `host_reference_chat.py` | `3bb1da645963e7edae69c3e327055f6849a821c9` | MATCH |
+
+This confirms the copied UTF-8 files are identical Git objects. It does not validate any executable or cassette behavior.
