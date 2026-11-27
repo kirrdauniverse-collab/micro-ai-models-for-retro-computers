@@ -6,6 +6,7 @@
 - Assigned this independent workspace as `chatgpt-3`; `chatgpt-1` already exists and `chatgpt-2` is reserved.
 - Copied all seven UTF-8 files from the legacy `CHATGPT/` directory into `legacy-chatgpt/`.
 - Created the required workspace documentation.
+- Compared all seven destination Git blob IDs with their original source blob IDs; all seven match exactly (see `MIGRATION_MANIFEST.md`).
 - Isolated all changes on branch `migration/chatgpt-3-pio-co-ai-zx81`; `main` and all other model workspaces are untouched.
 
 ### Not completed
