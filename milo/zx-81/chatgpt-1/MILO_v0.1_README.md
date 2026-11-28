@@ -15,3 +15,12 @@ IMPORTANT: the source file carries the new MILO header, but the historical AI16 
 All new MILO artifacts use MILO_v<version>_....
 
 Historical PICO/AI16/R3/R4/R5 files remain untouched for forensic comparison.
+
+
+## Handoff status
+
+**PREPARED FOR HANDOFF — NOT YET RELEASE-ACCEPTED.**
+
+The current P image is 15428 bytes, so it must not be assumed byte-identical to the historical 15385-byte AI16 control. The build script also still contains historical AI16/PICO paths and must be audited before it can be called a reproducible MILO build.
+
+See `MILO_v0.1_HANDOFF.md` and `MILO_v0.1_MANIFEST.md` before making further code changes.
