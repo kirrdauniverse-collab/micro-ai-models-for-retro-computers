@@ -73,6 +73,7 @@ def preprocess(src_path):
         for name in sorted(equs, key=len, reverse=True):
             core = re.sub(r"\b%s\b" % name, hex(equs[name]), core)
         core = re.sub(r",\s+\(", ",(", core)
+        core = re.sub(r"0x[0-9A-Fa-f]+", lambda m: str(int(m.group(0), 16)), core)
         out.append(core)
     return "\n".join(out)
 
