@@ -2363,9 +2363,9 @@ c_top:
 
 c_temp:
     call arg_digit
-    jr c, c_arg
+    jp c, c_arg
     cp 7
-    jr nc, c_arg
+    jp nc, c_arg
     ld c, a
     ld (VTEMP), a
     ld hl, T_TEMPOK
@@ -2376,9 +2376,9 @@ c_temp:
     jp wr_lineend
 c_reas:
     call arg_digit
-    jr c, c_arg
+    jp c, c_arg
     cp 4
-    jr nc, c_arg
+    jp nc, c_arg
     ld c, a
     ld (VREAS), a
     ld hl, T_REASOK
