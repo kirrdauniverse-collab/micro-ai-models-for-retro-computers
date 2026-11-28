@@ -1,0 +1,32 @@
+# ARCHÍV anyagok MD5-kártyája — glm/zx-81/glm-3/archive/ (2026-11-28)
+# A fájlok a költöztetéskori helyükről (kazettak/, kazettak/elozmenyek_v0.7.0_elott/,
+# forraskod_csomagok/) kerültek ide `git mv`-vel 2026-11-28-án; tartalmuk
+# bájazonos (a kazetták md5+méret ellenőrizve a mozdítás előtti friss méréshez).
+# A döntés és a bizonyítéklánc: ../ATADASI_DOKUMENTUM.md
+# md5  méret_bájt  út az archive/ alatt
+
+bbb07f2e72914318246be81eee7552df        5014  elozmenyek_v0.7.0_elott/ALLAPOT_KOVETKEZO_MENETHEZ.md
+37dbc9b49d6367d779d7c68e614ac962        1596  elozmenyek_v0.7.0_elott/BETOLTESI_UTMUTATO.md
+98676916d9143a1305f6e425ca5079ce       12569  elozmenyek_v0.7.0_elott/PICOASTR.p
+cf0828f74e25e70c646122191c361275       15891  elozmenyek_v0.7.0_elott/PICOBASE.p
+f46cd20f70e1932251740b24eedfb4e5       12569  elozmenyek_v0.7.0_elott/PICOSCIN.p
+dfbba293701bf2522ae8267052766580        4767  elozmenyek_v0.7.0_elott/PROJEKTNAPLO.md
+9d5344f550441109547447a72dd38c74         588  elozmenyek_v0.7.0_elott/README.md
+cc93ba5e53eeb03dd03ce4b6e8f58f8b        2336  elozmenyek_v0.7.0_elott/STATUS_hibavadaszat.md
+6885b39d4923d2502a3b7f7bb36951a7      111138  elozmenyek_v0.7.0_elott/ZX81AI_repo_v0.1dev.zip
+d261a54309fbcc3c51c43d9380455f16       39009  elozmenyek_v0.7.0_elott/ZX81PICO.T81
+0a5217bc759ef87e24eee51717d7f76c        4032  elozmenyek_v0.7.0_elott/chat_futasi_naplo.txt
+bb744a14cfc329cff9bc312fe67c5006         905  elozmenyek_v0.7.0_elott/publish.sh
+da18abc0ea49359e1392d8e1cfddcac0       98865  elozmenyek_v0.7.0_elott/zx81-ai-micro-language-modell.bundle
+70dccb241a776af6ac379d54bbb09ae5      168495  forraskod/GLM_PicoAI_v0.7.1_forraskod_csomag.zip
+1ccc7120460aee2f2f2a5d2f3c8cecab      187450  forraskod/GLM_PicoAI_v0.7.2_forraskod_csomag.zip
+1c7d8ca093082d7569ebe5e6032934f9      188304  forraskod/GLM_PicoAI_v0.7.3_forraskod_csomag.zip
+353bce12cc53a4eb51d46a103091c62b     1945557  forraskod/GLM_PicoAI_v0.8.0_forraskod_csomag.zip
+07059f79cdb4c0f5ee0c957605eadebe      143843  forraskod/GLM_PicoAI_v0.8.1_forraskod_csomag.zip
+f0d2bdf3ab72d4301a5509e3ed6641cc       78672  forraskod/GLM_PicoAI_v0.9.0_forraskod_csomag.zip
+160b23b5c258b428bd37d021cbc96f3d       39009  kazettak/GLM_PicoAI_v0.7.1_kazetta.T81
+8f7025f1a6fd25b7e2ddc326a0df20e9       38433  kazettak/GLM_PicoAI_v0.7.2_kazetta.T81
+fae288550aa51884df6560f7c260ef8b       38433  kazettak/GLM_PicoAI_v0.7.3_kazetta.T81
+d7f154b6130871c801c05a896ce71d18      227923  kazettak/GLM_PicoAI_v0.8.0_kazetta.T81
+abbf634478e97f7c0b44ebfd852c6a5b      227923  kazettak/GLM_PicoAI_v0.8.1_kazetta.T81
+# ÖSSZ: 24 fájl, 3593321 bájt

@@ -17,9 +17,9 @@ Dátum: 2026-11-27. Végrehajtó: GLM-3 példány (GLM / z.ai).
 
 | Forrás (`GLM3/…`) | Fájlok | Bájt | Megjegyzés |
 |---|---:|---:|---|
-| `kazettak/` | 21 | 1 337 408 | 7 verziósways .T81 + MD5SUMS.txt + `elozmenyek_v0.7.0_elott/` (14 fájl: ZX81PICO.T81, PICO*.p, korábbi állapotfájlok, bundle) |
+| `kazettak/` | 21 | 1 337 408 | 7 verziósways .T81 + MD5SUMS.txt + `elozmenyek_v0.7.0_elott/` (13 fájl: ZX81PICO.T81, PICO*.p, korábbi állapotfájlok, bundle) |
 | `dokumentacio/` | 15 | 288 770 | verziósways dokumentáció (txt/docx/pdf) + változásnaplók + v0.8.0 áttekintés |
-| `forraskod_csomagok/` | 7 | 4 663 464 | v0.6.5 → v0.9.2 forráscsomag .zip-ek |
+| `forraskod_csomagok/` | 7 | 4 663 464 | v0.6.5 → v0.9.0 forráscsomag .zip-ek (v0.9.2 zip nincs — annak forrása: motor_v090/ + build_v092.py) |
 | `allapot/` | 3 | 68 175 | STATE.md (1–15. menet), STATE_v0.7.1_backup.md, PROJECTLOG.md |
 | `szkriptek/` | 36 | 112 838 | build + verify + diagnosztika készlet |
 | `motor_v090/` | 58 | 689 190 | C-motor forrás (z88dk/zsdcc vonal) |
@@ -46,3 +46,11 @@ Dátum: 2026-11-27. Végrehajtó: GLM-3 példány (GLM / z.ai).
 - Nem átköltöztetett, más példányhoz tartozó anyagok (tilos azokat áthelyeznem):
   a gyökér `GLM/` (GLM-1 archív) és a `retro-tinyllm` GLM-vonala (GLM-2) —
   ezek a saját példányaik feladatai (lásd `README.md` példány-táblázat).
+
+## Utólagos megjegyzés (2026-11-28)
+
+A fenti számsorok a költöztetés pillanatának állapotát rögzítik. Azóta — a
+tulajdonos döntése alapján — a nem aktív verzióanyagok (5 kazetta, az
+elozmenyek-mappa, 6 forrászip) az `archive/` alá mozdultak `git mv`-vel,
+bájazonosan; az aktív vonal: v0.6.5 (ALAPFÁJL) + v0.9.2 (aktuális fej).
+Részletek: `ATADASI_DOKUMENTUM.md` (1–2. fejezet), `archive/MD5SUMS.txt`.

@@ -4,8 +4,12 @@ Megjegyzés: ez a dokumentum a régi munkahely (`ZX81-AI-micro-language-model/GL
 `HIBA_ES_JAVITAS_TORTENET.md` fájljának átnevezett példánya (központi kötelező
 sablon szerint; forrás: `aefdee3`). Összeállítva 2026-11-27, az
 `allapot/STATE.md` 2–15. meneteiből és a `dokumentacio/` változásnaplóiból.
-Minden kazetta MD5-e: `kazettak/MD5SUMS.txt`, SHA-256: `SHA256SUMS.txt`,
-teljes leltár: `TELJES_LELTAR.txt`.
+Minden kazetta MD5-e: `kazettak/MD5SUMS.txt` (aktív) és `archive/MD5SUMS.txt`
+(archív), SHA-256: `SHA256SUMS.txt`, teljes leltár: `TELJES_LELTAR.txt`.
+**2026-11-28:** a v0.7.1–v0.8.1 kazetták, az `elozmenyek_v0.7.0_elott/`
+előzmények és a v0.7.1→v0.9.0 forrászip-ek az `archive/` alá mozdultak
+(`git mv`, bájazonosan — lásd `ATADASI_DOKUMENTUM.md` 2. fejezet); a táblázat
+útjai az új helyet mutatják. Az aktív vonal: v0.6.5 (ALAPFÁJL) + v0.9.2 (fej).
 
 ## 0. Kontextus: a konténer és a két örök szabály
 
@@ -27,7 +31,7 @@ teljes leltár: `TELJES_LELTAR.txt`.
 | v0.5.0–0.5.3 | nem maradt meg | Reset / hibajelentések, egyiket sem erősítette meg működőként | — |
 | v0.5.4 | nem maradt meg (GLM-2-vonal) | „Részben használható" | A nem-boot blokkok E_LINE-ja túllógott + az EO blokkonként 131–186 B-ot levágott (össz. 2092 B) → a v0.6.5 builder ezt javította |
 | v0.6.5 | `1162414c907f7a0b13c5cc2b4999c0de` (227 923 B, 15 blokk) | Betöltés + profilkérdések OK; az RTBASE16 blokk után 2–3 grafikus karakter, a felső sor kiúszik, fehér kép, **PC = $004x** | A motor `$7AE0`-s farokcsapdája: NMI-off ág → ROM DISPLAY-5 örök NMI-várás → javítás v0.8.1 (OUT FE) → v0.9.2 (IN FE) |
-| v0.7.0 | `kazettak/elozmenyek_v0.7.0_elott/ZX81PICO.T81` (39 009 B) | Intro után fehér képernyő | A boot ML a RAMTOP-ot a 0x4026-ra írta (= LAST-K!) → a NEW RAM-FILL-je letörölte a teljes 16K-t → javítás: RAMTOP EQU 0x4004 (v0.7.1) — assembly-vonal |
+| v0.7.0 | `archive/elozmenyek_v0.7.0_elott/ZX81PICO.T81` (39 009 B) | Intro után fehér képernyő | A boot ML a RAMTOP-ot a 0x4026-ra írta (= LAST-K!) → a NEW RAM-FILL-je letörölte a teljes 16K-t → javítás: RAMTOP EQU 0x4004 (v0.7.1) — assembly-vonal |
 | v0.7.1 | `160b23b5c258b428bd37d021cbc96f3d` (39 009 B) | „4/2" hibakód (OUT OF RAM, a BASIC 2. során) | E_LINE (0x7100) és RAMTOP (0x715F) közt ~90 B → javítás: E_LINE 0x7040 + USR BC-visszatérés + IY=0x4000 + valódi billentyűmátrix (v0.7.2) |
 | v0.7.2 | `8f7025f1a6fd25b7e2ddc326a0df20e9` (38 433 B) | Ismét „4/2" | A build_t81.py token-konstansai hibásak (OCR-sérült tábla) → javítás-kísérlet: v0.7.3 — HIBÁS |
 | v0.7.3 | `fae288550aa51884df6560f7c260ef8b` (38 433 B) | **VISSZAVONVA** — használhatatlan | Minden blokk FOR (0xEB) tokennel indul (REM = 0xEA helyett), PRINT helyén PLOT (0xF6). A helyes token-tábla: `dokumentacio/GLM_PicoAI_v0.8.0_valtozas_attekintes.txt` |

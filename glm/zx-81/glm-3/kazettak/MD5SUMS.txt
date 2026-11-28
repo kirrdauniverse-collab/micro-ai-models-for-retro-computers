@@ -1,10 +1,9 @@
-# Kazetta MD5-kartya (GLM3/kazettak)
-# nev  meret_bajt  md5
+# AKTÍV kazetták — glm/zx-81/glm-3/kazettak/ (2026-11-28)
+# ALAPFÁJL: v0.6.5 — ettől a verziótól maradt a tünet változatlan a
+#            javítások ellenére; a re-vizsgálat kiindulója (ATADASI_DOKUMENTUM.md).
+# AKTUÁLIS FEJ: v0.9.2 — élő EO-próba függőben (A/B/C).
+# Az archivált verziók kártyája: ../archive/MD5SUMS.txt
+# md5  méret_bájt  fájl
 
-GLM_PicoAI_v0.6.5_kazetta.T81  227923  1162414c907f7a0b13c5cc2b4999c0de
-GLM_PicoAI_v0.7.1_kazetta.T81  39009  160b23b5c258b428bd37d021cbc96f3d
-GLM_PicoAI_v0.7.2_kazetta.T81  38433  8f7025f1a6fd25b7e2ddc326a0df20e9
-GLM_PicoAI_v0.7.3_kazetta.T81  38433  fae288550aa51884df6560f7c260ef8b
-GLM_PicoAI_v0.8.0_kazetta.T81  227923  d7f154b6130871c801c05a896ce71d18
-GLM_PicoAI_v0.8.1_kazetta.T81  227923  abbf634478e97f7c0b44ebfd852c6a5b
-GLM_PicoAI_v0.9.2_kazetta.T81  227923  6f5fc138e66e2ccdd52b982fffdb9003
+1162414c907f7a0b13c5cc2b4999c0de   227923  GLM_PicoAI_v0.6.5_kazetta.T81
+6f5fc138e66e2ccdd52b982fffdb9003   227923  GLM_PicoAI_v0.9.2_kazetta.T81

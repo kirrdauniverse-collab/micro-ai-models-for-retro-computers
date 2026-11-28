@@ -752,3 +752,33 @@ könyvtárat nem tárol — a glm/zx-81/ az első valódi fájlal együtt jön l
   ERROR_AND_REPAIR_LOG (= a HIBA_ES_JAVITAS_TORTENET.md átnevezve), BREAKPOINT.
 - Régi hely (ZX81-AI-micro-language-model/GLM3): ATKÖLTÖZTETVE.md jelzés került,
   semmi nem törlődött — történeti példányként megmarad.
+
+## 16. menet (2026-11-28) — ÁTADÁSI DOKUMENTUM + ALAPFÁJL-döntés + archiválás
+
+### A tulajdonos döntései
+- Az a modell legyen a folytatás alapja, amitől kezdve gyanúsan nem voltak
+  hatásai a javításoknak → **ALAPFÁJL = v0.6.5** (MD5 1162414c…; a tünet
+  v0.6.5→v0.8.0 változatlan: 9.–10. menet; a $7AE0-csapdacsalád;
+  RTBASE16-lánc élőben soha).
+- „A többit archiváld" → `archive/` alá git mv-vel: 5 kazetta (v0.7.1–v0.8.1),
+  elozmenyek_v0.7.0_elott/ (13 fájl), 6 forrászip (v0.7.1→v0.9.0) —
+  8/8 kazetta bájazonos ellenőrzéssel, semmi törlés.
+- „Csak a te munkakönyvtáradban szigorúan" → írás csak glm/zx-81/glm-3/-ban;
+  glm-1/glm-2 és más modellek területe érintetlen.
+
+### Kézbesítés (központi repó, glm/zx-81/glm-3/)
+- ATADASI_DOKUMENTUM.md — a döntés + bizonyítéklánc + örök szabályok +
+  munkarend + következő menet (másolat: download/ATADASI_DOKUMENTUM.md).
+- kazettak/ aktív maradt: v0.6.5 (ALAPFÁJL) + v0.9.2 (aktuális fej) +
+  MD5SUMS.txt; archive/: MD5SUMS.txt (24 fájl / 3 593 321 bájt) + README.md.
+- Korrekció: a forrászip-sorozat v0.6.5→v0.9.0 (v0.9.2 zip NINCS — forrása
+  motor_v090/ + build_v092.py). README / PROJECT_INDEX / BREAKPOINT /
+  ERROR_AND_REPAIR_LOG frissítve az új rendhez; TELJES_LELTAR
+  (197 fájl / 30 566 918 B) + SHA256SUMS újragenerálva.
+
+### Következő menet
+1. Re-vizsgálat v0.6.5-ről: a $7AE0–$7AE5 farokcsapda + RTBASE16-lánc élő
+   EO-ban (első lépés: trap_disasm.py a v0.6.5 15. blokkján), v0.9.2-vel
+   összevetve.
+2. v0.9.2 élő EO-próba A/B/C (tulajdonosnál).
+3. retro-tinyllm CI — ChatGPT-vonal, nem glm-3.
