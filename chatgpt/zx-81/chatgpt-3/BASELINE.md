@@ -1,29 +1,36 @@
-# PIOCO AI ZX81 — kiválasztott kiinduló változat
+# PICO AI ZX81 — kiválasztott kiinduló változat
 
 **Státusz:** ChatGPT-3 munkaterület hivatalos összehasonlítási alapja  
 **Kiválasztva:** 2026-11-28  
+**PICO AI kiadási címke:** `v0.1.0`  
 **Eredeti fájl dátuma:** 2026-11-25 17:49 UTC (a korábbi fájltár metaadata szerint)
 
-## Kanonikus kazetta
+## Hivatalos, verziózott fájlnév
 
-- Fájlnév: `PIOCO_AI_English_16K_CleanDisplay.t81`
+A változatlan baseline-kazetta helyi, kiadási nevű példánya:
+
+- `PICO_AI_ZX81_16K_v0.1.0.t81`
 - Méret: **225 941 bájt**
 - SHA-256: `6d2025bd66435ed51540efeb7e098292926a0f8b2ce9a489103a2fe3d33faea5`
 
-Ez a pontosan ellenőrzött fájl lett kiválasztva. A 2026-11-27-én újra feltöltött `PIOCO_AI_English_16K_CleanDisplay(1).t81` bájtról bájtra azonos vele, ugyanaz a méret és SHA-256.
+Ez bájtról bájtra azonos az eredetileg kiválasztott `PIOCO_AI_English_16K_CleanDisplay(1).t81` fájllal. Csak a helyi fájlnév változott; a T81 tartalmát nem módosítottam.
 
-## Hozzá tartozó buildarchívum
+## Kanonikus forrási/buildarchívum
 
-- Fájlnév: `PIOCO_AI_English_16K_CleanDisplay_artifact.zip`
+A verziózott helyi másolat:
+
+- `PICO_AI_ZX81_16K_v0.1.0_build.zip`
 - Méret: **36 049 bájt**
 - SHA-256: `69433d00ac07a9c116fc9ddb8878666f5025d29dded0b5d023f65fb9c2a58234`
+
+Ez a ZIP tartalmában azonos az eredeti `PIOCO_AI_English_16K_CleanDisplay_artifact.zip` archívummal.
 
 Az archívum belső kazettája:
 `ports/zx81/pio16_release/PIOCO_AI_English_16K_ROM_INPUT.t81`
 
 - Belső fájlméret: 225 941 bájt
 - SHA-256: `6d2025bd66435ed51540efeb7e098292926a0f8b2ce9a489103a2fe3d33faea5`
-- **Bájtról bájtra egyezik** a kiválasztott CleanDisplay kazettával. Az archívum belső fájlneve eltér, de a tartalma nem.
+- **Bájtról bájtra egyezik** a kiválasztott CleanDisplay kazettával. Az archívum belső fájlneve eltér, a tartalma nem.
 
 Az archívum további fájljai:
 - `build/zx81/rboot16.P` — 6 822 B; SHA-256 `e493e6549a979856abb4b90b73ed0f2a16157501b738b034518a85e4157d99dc`
@@ -31,7 +38,17 @@ Az archívum további fájljai:
 - `build/zx81/rtchat16.P` — 14 518 B; SHA-256 `40b3ee7b9ecbdc24dae9b400b6bcadba43c9c1d5e70519865549be7a88f00e29`
 - `build/zx81/rtchat16.bin` — 13 587 B; SHA-256 `f3c55a7027fa16b1c65103cb59746eebe7041a9b59d1a582c4421abfbe440530`
 
-**Fontos:** az archívum tartalmazza a kazettát és a fenti buildfájlokat, de a ZIP-ben nincs teljes forrásfa vagy teljes buildrecept. A hash-egyezés a kiválasztott T81 és az archívum belső T81 azonosságát bizonyítja; önmagában nem bizonyít teljes, forrásból reprodukálható buildet.
+**Fontos:** az archívum a kazettát és a kész buildfájlokat tartalmazza, de nincs benne teljes forrásfa vagy teljes buildrecept. A hash-egyezés a kiválasztott T81 és a belső T81 azonosságát bizonyítja; nem bizonyít teljes, forrásból reprodukálható buildet.
+
+## A baseline verziószámának jelentése
+
+A `v0.1.0` a ChatGPT-3 PICO AI fejlesztési ág verziócímkéje. Nem állítja, hogy az eredeti TinyLLM belső modellverziója is 0.1.0, és nem jelenti azt, hogy a verziószám már a jelenlegi kazetta képernyőjén is megjelenik.
+
+A jelenlegi baseline belső karakterláncai a hozzá tartozó buildarchívumban:
+- boot/profile: `PIOCO AI PROFILE OK`
+- chatmotor: `tinyllm v0.5.4`
+
+Ezeket a régi forrás/binary lineage részeként kell kezelni. A következő ténylegesen újraépített kiadásban a forrásban kell átvezetni a **PICO AI** márkanevet és a verziószámot, nem pedig vakon bájtpatcheléssel átírni a gépi kódot.
 
 ## Mit jelent a baseline-kijelölés?
 
