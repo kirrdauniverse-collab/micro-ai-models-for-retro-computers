@@ -21,13 +21,21 @@ Seven UTF-8 files were copied under `legacy-chatgpt/`. Their source blob SHAs ar
 | `CHATGPT/README.md` | `4812fe3de20405ff2440137200855e1ab84bd0a0` | `legacy-chatgpt/README.md` |
 | `CHATGPT/host_reference_chat.py` | `3bb1da645963e7edae69c3e327055f6849a821c9` | `legacy-chatgpt/host_reference_chat.py` |
 
-## Binary files identified but NOT migrated
-- `PIOCO_AI_English_16K_CleanDisplay(1).t81` — 225,941 bytes; SHA-256 `6d2025bd66435ed51540efeb7e098292926a0f8b2ce9a489103a2fe3d33faea5`.
-- `PIOCO_AI_English_16K_IYBootstrap_Final2_artifact(1).zip` — 35,961 bytes; SHA-256 `15f33b7c545a30edb58211710f47a295eabad94c034c764326de555726ee9729`.
+## Selected CleanDisplay baseline — verified locally, not committed to GitHub
+- File: `PIOCO_AI_English_16K_CleanDisplay.t81` (also re-uploaded as `PIOCO_AI_English_16K_CleanDisplay(1).t81`)
+- Size: 225,941 bytes
+- SHA-256: `6d2025bd66435ed51540efeb7e098292926a0f8b2ce9a489103a2fe3d33faea5`
+- Companion archive: `PIOCO_AI_English_16K_CleanDisplay_artifact.zip`
+- Archive size: 36,049 bytes
+- Archive SHA-256: `69433d00ac07a9c116fc9ddb8878666f5025d29dded0b5d023f65fb9c2a58234`
+- The archive's `ports/zx81/pio16_release/PIOCO_AI_English_16K_ROM_INPUT.t81` is 225,941 bytes and has the same SHA-256 as the selected CleanDisplay T81; the two are byte-identical despite different filenames.
+- The archive also contains `rboot16.P/.bin` and `rtchat16.P/.bin`; individual hashes are in `BASELINE.md`.
+- The archive does not contain a complete source tree or full reproducible build recipe. The identity of the packaged T81 is established; full source-to-binary reproducibility is not.
 
-The ZIP contains a distinct `PIOCO_AI_English_16K_ROM_INPUT.t81` (225,115 bytes) plus build outputs. It is not assumed byte-identical to the separately supplied CleanDisplay tape.
-
-A local continuity archive was prepared at `/mnt/data/PICOAI_ChatGPT3_Continuity_Bundle.zip` (47,179 bytes; SHA-256 `e4bfcb74d0b9c1b81da9e70100563ba0324ba5efa55e708c7a12a0c13f4a4eeb`). It contains the two uploaded files unchanged, but is **not committed to this GitHub branch** because the available GitHub write action has no direct local-binary upload input. No text conversion or false byte-preservation claim is being made.
+## Other binary files identified but NOT migrated
+- `PIOCO_AI_English_16K_IYBootstrap_Final2_artifact(1).zip` — 35,961 bytes; SHA-256 `15f33b7c545a30edb58211710f47a295eabad94c034c764326de555726ee9729`. This is a separate build, not the selected baseline.
+- Its internal `PIOCO_AI_English_16K_ROM_INPUT.t81` is 225,115 bytes and differs from the selected 225,941-byte CleanDisplay tape. Do not mix the two.
+- A local continuity archive was prepared at `/mnt/data/PICOAI_ChatGPT3_Continuity_Bundle.zip` (47,179 bytes; SHA-256 `e4bfcb74d0b9c1b81da9e70100563ba0324ba5efa55e708c7a12a0c13f4a4eeb`). It contains the two originally uploaded files unchanged, but is not committed to this GitHub branch.
 
 ## Explicitly not migrated
 - `EightyOne_V141.zip` is an emulator distribution / test tool, not a ChatGPT-authored PICO AI deliverable. It remains with the user.
@@ -35,7 +43,6 @@ A local continuity archive was prepared at `/mnt/data/PICOAI_ChatGPT3_Continuity
 - No files from `chatgpt-1`, `chatgpt-2`, GLM, Grok or other model workspaces were copied or changed.
 
 ## Destination verification
-
 Each copied file was fetched from the destination branch and its Git blob SHA compared to the source repository blob SHA. All seven comparisons matched exactly:
 
 | File | Destination blob SHA | Result |
