@@ -11,7 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install assembler dependency
-        run: python3 -m pip install z80
+        run: python3 -m pip install 'z80==1.0b3'
       - name: Build MILO v0.2
         run: |
           cd milo/zx-81/chatgpt-1
