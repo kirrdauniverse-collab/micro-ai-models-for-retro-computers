@@ -142,15 +142,15 @@ WEATHER = [
 ]
 
 RETRO = [
-    (0, 2, "games | game", "try number game, riddle, true or false, chess or adventure."),
-    (0, 2, "number game | guess a number", "think of a number from 1 to 10. i will narrow it down."),
+    (0, 2, "games | game", "number game, riddle, quiz, chess, adventure."),
+    (0, 2, "number game | guess a number", "think of a number 1 to 10. i will narrow it down."),
     (0, 2, "riddle | puzzle", "riddle: what has a face and two hands but no arms?"),
-    (0, 2, "true or false | quiz", "round one: the zx81 uses a z80. true or false?"),
-    (0, 2, "chess | chess game", "give a move like e2 e4. full chess engine later."),
-    (0, 2, "adventure | text adventure", "you stand before a locked observatory. left is a forest, right is a radio tower."),
-    (0, 2, "right | tower", "the tower hears a weak signal: three lights, then silence. climb or listen?"),
-    (0, 2, "left | forest", "the forest hides a metal box. open it or leave it?"),
-    (16, 2, "|", "games: number game, riddle, true or false, chess, adventure."),
+    (0, 2, "true or false | quiz", "round one: zx81 uses z80. true or false?"),
+    (0, 2, "chess | chess game", "give a move like e2 e4. engine later."),
+    (0, 2, "adventure | text adventure", "locked observatory. left: forest. right: radio tower."),
+    (0, 2, "right | tower", "tower hears: three lights, silence. climb or listen?"),
+    (0, 2, "left | forest", "forest: a metal box. open or leave?"),
+    (16, 2, "|", "games: number, riddle, quiz, chess, adventure."),
 ]
 
 HELP_TEXT = (
