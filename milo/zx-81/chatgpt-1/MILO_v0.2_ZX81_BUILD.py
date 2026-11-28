@@ -144,6 +144,10 @@ def main():
     text = preprocess(asm)
     tmp = "/tmp/MILO_v0.2_engine.src"
     open(tmp, "w", encoding="utf-8").write(text)
+    print("DEBUG asm 125-136:")
+    for no, line in enumerate(text.splitlines(), 1):
+        if 125 <= no <= 136:
+            print("%03d: %s" % (no, line))
     org, engine = assemble(tmp)
     if org != ENGINE_ORG:
         raise SystemExit("engine org 0x%04X != 0x%04X" % (org, ENGINE_ORG))
