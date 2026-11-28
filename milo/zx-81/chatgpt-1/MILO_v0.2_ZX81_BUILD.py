@@ -82,7 +82,6 @@ def preprocess(src_path):
             a, b = int(m.group(1)), int(m.group(3))
             val = a + b if m.group(2) == "+" else a - b
             core = core[:m.start()] + str(val & 0xFFFF) + core[m.end():]
-        core = re.sub(r"\bjr\b", "jp", core, flags=re.I)
         out.append(core)
     return "\n".join(out)
 
@@ -91,7 +90,19 @@ def assemble(src):
     from z80._source import SourceFile
     code = Asm().assemble(SourceFile(src))
     code.resolve()
-    blocks = code.encode()
+    try:
+        blocks = code.encode()
+    except Exception as e:
+        print("ENCODE ERROR:", e)
+        syms = getattr(code, "_Code__symbols", {})
+        for name, sym in syms.items():
+            try:
+                v = sym.evaluate()
+                if 0x4D00 <= v <= 0x5000:
+                    print("SYM", name, hex(v))
+            except Exception:
+                pass
+        raise
     blocks = [b for b in blocks if b[0] >= 0x4000]
     org = min(a for a, _ in blocks)
     data = b"".join(b[1] for b in blocks)
