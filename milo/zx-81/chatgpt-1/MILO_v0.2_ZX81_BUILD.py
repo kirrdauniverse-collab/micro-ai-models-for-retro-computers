@@ -82,6 +82,7 @@ def preprocess(src_path):
             a, b = int(m.group(1)), int(m.group(3))
             val = a + b if m.group(2) == "+" else a - b
             core = core[:m.start()] + str(val & 0xFFFF) + core[m.end():]
+        core = re.sub(r"\bjr\b", "jp", core, flags=re.I)
         out.append(core)
     return "\n".join(out)
 
