@@ -1,19 +1,15 @@
-# Breakpoint – grok-1
+# Breakpoint – grok-1 (Nibble)
 
-**Dátum:** 2026-11-27
-**Aktuális verzió:** v0.6
-**Státusz:** Költöztetés befejezve, készen áll a további tesztelésre / javításra
+**Dátum:** 2026-11-28  
+**Név:** Nibble  
+**Előző név:** Pico AI  
+**Aktuális verzió:** v0.6 (utolsó Pico) → következő v0.7 (Nibble)
 
 ## Hol tartunk
-- Strict ZX81 BASIC model működik
-- 4 blokkos T81 kész
-- Hangulat, thinking, matek, színek, ideiglenes tanulás benne van
+A projekt hivatalosan felvette a **Nibble** nevet.
 
-## Következő lépések (prioritás szerint)
-1. A tulajdonos teszteli a v0.6.t81-et és jelzi a hibákat
-2. Hibajavítások strict BASIC szabályok betartásával
-3. További topic blokkok vagy a modell okosabbá tétele
-4. (Később) Valódi token / bigram motor felé mozdulás
-
-## Fontos fájl
-releases/v0.6/pico-ai-v0.6.t81
+## Következő lépés
+v0.7 elkészítése:
+- Minden "Pico AI" → "Nibble"
+- Splash képernyő frissítése
+- Új .T81 kiadása

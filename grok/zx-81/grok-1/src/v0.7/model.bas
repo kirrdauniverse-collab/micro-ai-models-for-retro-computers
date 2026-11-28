@@ -1,0 +1,210 @@
+10 REM NIBBLE MODEL V0.6
+20 REM Strict ZX81 BASIC only
+30 REM Single letter strings, one stmt per line
+
+100 CLS
+110 PRINT "NIBBLE V0.6 READY"
+120 PRINT "Type HELP for commands"
+130 PRINT
+140 LET M=1
+150 LET T=2
+160 LET L$=""
+170 LET U$="Friend"
+
+200 PRINT "----------------"
+210 PRINT "YOU: ";
+220 INPUT A$
+230 PRINT "YOU: ";A$
+240 PRINT
+
+250 PRINT "PICO thinking..."
+260 PAUSE 20+T*10
+270 PRINT
+
+300 IF A$="" THEN GOTO 200
+310 IF A$="BYE" THEN GOTO 9000
+320 IF A$="bye" THEN GOTO 9000
+330 IF A$="HELP" THEN GOTO 8000
+340 IF A$="help" THEN GOTO 8000
+350 IF A$="MOOD" THEN GOTO 7000
+360 IF A$="mood" THEN GOTO 7000
+370 IF A$="TEMP" THEN GOTO 7100
+380 IF A$="temp" THEN GOTO 7100
+390 IF A$="NAME" THEN GOTO 7200
+400 IF A$="name" THEN GOTO 7200
+410 IF A$="LEARN" THEN GOTO 7400
+420 IF A$="learn" THEN GOTO 7400
+
+500 IF A$="SAD" THEN LET M=0
+510 IF A$="sad" THEN LET M=0
+520 IF A$="HAPPY" THEN LET M=2
+530 IF A$="happy" THEN LET M=2
+540 IF A$="ANGRY" THEN LET M=3
+550 IF A$="angry" THEN LET M=3
+
+600 IF A$="1+1" THEN GOTO 6000
+610 IF A$="1 + 1" THEN GOTO 6000
+620 IF A$="2+2" THEN GOTO 6050
+630 IF A$="2 + 2" THEN GOTO 6050
+640 IF A$="10-3" THEN GOTO 6100
+650 IF A$="10 - 3" THEN GOTO 6100
+
+700 IF A$="BLUE AND YELLOW" THEN GOTO 6200
+710 IF A$="blue and yellow" THEN GOTO 6200
+720 IF A$="RED AND BLUE" THEN GOTO 6250
+730 IF A$="red and blue" THEN GOTO 6250
+740 IF A$="RED AND YELLOW" THEN GOTO 6300
+750 IF A$="red and yellow" THEN GOTO 6300
+
+800 IF A$="HELLO" THEN GOTO 5000
+810 IF A$="hello" THEN GOTO 5000
+820 IF A$="HI" THEN GOTO 5000
+830 IF A$="hi" THEN GOTO 5000
+840 IF A$="WHO ARE YOU" THEN GOTO 5100
+850 IF A$="who are you" THEN GOTO 5100
+860 IF A$="WHO MADE YOU" THEN GOTO 5200
+870 IF A$="who made you" THEN GOTO 5200
+880 IF A$="WHAT IS ZX81" THEN GOTO 5300
+890 IF A$="what is zx81" THEN GOTO 5300
+900 IF A$="WHAT CAN YOU DO" THEN GOTO 5400
+910 IF A$="what can you do" THEN GOTO 5400
+920 IF A$="JOKE" THEN GOTO 5500
+930 IF A$="joke" THEN GOTO 5500
+940 IF A$="STORY" THEN GOTO 5600
+950 IF A$="story" THEN GOTO 5600
+
+1000 IF L$="" THEN GOTO 5800
+1010 IF A$=L$ THEN GOTO 7500
+1020 GOTO 5800
+
+5000 IF M=0 THEN PRINT "NIBBLE: Hello... hope you feel better."
+5010 IF M=1 THEN PRINT "NIBBLE: Hello ";U$;"."
+5020 IF M=2 THEN PRINT "NIBBLE: Hey. Great to see you."
+5030 IF M=3 THEN PRINT "NIBBLE: ...hello."
+5040 PRINT
+5050 GOTO 200
+
+5100 PRINT "NIBBLE: I am Nibble, a tiny"
+5110 PRINT "model running on ZX81."
+5120 PRINT "I use keywords and simple"
+5130 PRINT "rules."
+5140 PRINT
+5150 GOTO 200
+
+5200 PRINT "NIBBLE: Made with help by"
+5210 PRINT "Safar Sandor from Hungary."
+5220 PRINT "Bus driver, writer,"
+5230 PRINT "astronomer."
+5240 PRINT
+5250 GOTO 200
+
+5300 PRINT "NIBBLE: ZX81 is a 1981"
+5310 PRINT "Sinclair computer. Many"
+5320 PRINT "had only 16K RAM."
+5330 PRINT
+5340 GOTO 200
+
+5400 PRINT "NIBBLE: I can chat, do simple"
+5410 PRINT "math, mix colors, detect"
+5420 PRINT "mood, learn one fact, and"
+5430 PRINT "tell a short story."
+5440 PRINT "Type HELP for more."
+5450 PRINT
+5460 GOTO 200
+
+5500 PRINT "NIBBLE: Why did the computer"
+5510 PRINT "go to therapy. It had too"
+5520 PRINT "many bytes of emotional"
+5530 PRINT "baggage."
+5540 PRINT
+5550 GOTO 200
+
+5600 PRINT "NIBBLE: Once there was a"
+5610 PRINT "little computer who dreamed"
+5620 PRINT "of talking. One day a human"
+5630 PRINT "loaded a tiny AI... and it"
+5640 PRINT "said: Hello."
+5650 PRINT
+5660 GOTO 200
+
+5800 PRINT "NIBBLE: I do not understand."
+5810 PRINT "Try HELP or ask something"
+5820 PRINT "else. Or teach me with"
+5830 PRINT "LEARN."
+5840 PRINT
+5850 GOTO 200
+
+6000 PRINT "NIBBLE: 1+1 = 2"
+6010 PRINT
+6020 GOTO 200
+
+6050 PRINT "NIBBLE: 2+2 = 4"
+6060 PRINT
+6070 GOTO 200
+
+6100 PRINT "NIBBLE: 10-3 = 7"
+6110 PRINT
+6120 GOTO 200
+
+6200 PRINT "NIBBLE: Blue + Yellow = Green"
+6210 PRINT
+6220 GOTO 200
+
+6250 PRINT "NIBBLE: Red + Blue = Purple"
+6260 PRINT
+6270 GOTO 200
+
+6300 PRINT "NIBBLE: Red + Yellow = Orange"
+6310 PRINT
+6320 GOTO 200
+
+7000 PRINT "NIBBLE: Current mood code: ";M
+7010 PRINT "0=sad 1=normal 2=happy 3=angry"
+7020 PRINT "Say SAD / HAPPY / ANGRY"
+7030 PRINT
+7040 GOTO 200
+
+7100 PRINT "NIBBLE: Temperature ";T
+7110 PRINT "Higher = more random"
+7120 PRINT
+7130 GOTO 200
+
+7200 PRINT "NIBBLE: What is your name?"
+7210 INPUT U$
+7220 IF U$="" THEN LET U$="Friend"
+7230 PRINT "NIBBLE: Nice to meet you, ";U$
+7240 PRINT
+7250 GOTO 200
+
+7400 PRINT "NIBBLE: Teach me one short"
+7410 PRINT "fact (max 20 chars)."
+7420 INPUT L$
+7430 IF LEN L$>20 THEN LET L$=L$( TO 20)
+7440 PRINT "NIBBLE: I will remember:"
+7450 PRINT L$
+7460 PRINT
+7470 GOTO 200
+
+7500 PRINT "NIBBLE: You taught me:"
+7510 PRINT L$
+7520 PRINT
+7530 GOTO 200
+
+8000 PRINT "COMMANDS:"
+8010 PRINT " HELP  - this list"
+8020 PRINT " BYE   - quit"
+8030 PRINT " NAME  - set your name"
+8040 PRINT " MOOD  - show mood"
+8050 PRINT " TEMP  - show temperature"
+8060 PRINT " LEARN - teach me one fact"
+8070 PRINT
+8080 PRINT "Try: hello, who are you,"
+8090 PRINT "who made you, what is zx81,"
+8100 PRINT "joke, story, 1+1,"
+8110 PRINT "blue and yellow"
+8120 PRINT
+8130 GOTO 200
+
+9000 PRINT "NIBBLE: Goodbye ";U$;"."
+9010 PRINT
+9020 STOP
