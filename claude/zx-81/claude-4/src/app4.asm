@@ -71,8 +71,8 @@ TITLE:  call CLS
         call CLS
         ret
 S_BOX1:  zs "**************************"
-S_BOX2:  zs "*   RETRO TINYLLM 16K    *"
-S_BOX3:  zs "*   ZX81 AI - ALAP VERZIO *"
+S_BOX2:  zs "*   CRICKET-81  V1.1.6   *"
+S_BOX3:  zs "*   ZX81 AI - CLAUDE-4   *"
 S_PRESS: zs "   BILLENTYU A FOLYTATAHOZ"
 
 ; ASK_MANUAL: asks for the manual and prints it when wanted

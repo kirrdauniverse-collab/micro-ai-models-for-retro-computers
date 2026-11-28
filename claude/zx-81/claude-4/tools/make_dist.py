@@ -4,7 +4,7 @@ RT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, RT + '/tools')
 import build_image as B
 VER = open(RT + '/VERSION').read().strip()
-TAG = 'Claude_Haiku_5.5'                 # model name in every file name
+TAG = 'Cricket81_Claude-4'                 # Cricket-81 (Claude-4) in every file name
 VT = 'v%s_%s' % (VER, TAG)
 lut = RT + '/ref/engine/rt_lut.h'
 spec = [('RTLOAD', 'base_f.bin', 0), ('RTCHAT', 'base_f.bin', 0), ('WEATHER', 'topic_weather.bin', 1),

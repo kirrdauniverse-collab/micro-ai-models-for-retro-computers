@@ -23,3 +23,9 @@
 
 ## Fájlok listája
 Teljes lista és hash: `MIGRATION_MANIFEST.md`.
+
+## Átnevezés (2026-11-28)
+- Modellnév: **Cricket-81** (Claude-4). A fájlnevekben: `Cricket81_Claude-4`.
+- Fájlnév-minta: `<FÁJL>_v<verzió>_Cricket81_Claude-4.<kiterjesztés>`, pl. `RTCHAT_v1.1.6-diag_Cricket81_Claude-4.P`.
+- A kép címsora: `CRICKET-81  V1.1.6`.
+- A régi `..._Claude_Haiku_5.5` fájlok a `dist/` mappában történeti példányok, nem törölve.
