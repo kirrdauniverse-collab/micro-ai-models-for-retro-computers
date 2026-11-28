@@ -26,8 +26,8 @@
 ; ---------------------------------------------------------- addresses
 MEMADD     equ 0x5E20      ; MEM slot (512 B, inside the image)
 BASEADD    equ 0x6020      ; BASE bank
-PACKWADD   equ 0x6800      ; WEATHER pack
-PACKRADD   equ 0x6E00      ; RETRO pack
+PACKWADD   equ 0x6840      ; WEATHER pack
+PACKRADD   equ 0x7000      ; RETRO pack
 TURBOADD   equ 0x7290      ; RT-TURBO reservation (inert, magic RTT1)
 OUTBUF     equ 0x72F0      ; 64 B scratch (status rows, composing)
 XL         equ OUTBUF+62   ; scratch pointer save L
@@ -2345,17 +2345,8 @@ cmd_run:
     jp say
 
 c_help:
-    ld hl, HELPC1
-    call print_enc
-    ld a, 0x0A
-    call wr_ch
-    ld hl, HELPC2
-    call print_enc
-    ld a, 0x0A
-    call wr_ch
-    ld hl, HELPC3
-    call print_enc
-    jp wr_lineend
+    ld hl, T_HELP
+    jp say
 
 c_top:
     ld hl, T_TOPICS
@@ -3151,6 +3142,8 @@ T_BADB:
     db "hmm. give it like: my birthday is 21 3"
 T_BADCMD:
     db "unknown command. try /help."
+T_HELP:
+    db "type text and press enter.#commands: /topics /time hh mm /remind n.#shift+1..4=temp, shift+9=think, shift+7/6=scroll, shift+0=erase."
 T_TOPICS:
     db "topics: health philosophy learning-basic learning-school art music astronomy programming cars motorcycles retro kirrda games. packs: knowledge games."
 T_SAVED:
