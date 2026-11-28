@@ -1,0 +1,38 @@
+name: Build MILO v0.2 ZX81
+
+on:
+  push:
+    branches: [ "milo/zx81-v0.2" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install assembler dependency
+        run: python3 -m pip install z80
+      - name: Build MILO v0.2
+        run: |
+          cd milo/zx-81/chatgpt-1
+          python3 MILO_v0.2_ZX81_BUILD.py
+      - name: Validate cassette structure
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path("milo/zx-81/chatgpt-1/MILO_v0.2_ZX81.t81").read_bytes()
+          assert p[:4]==b"EO81"
+          n=int(p[36:52].split(b"\0",1)[0])
+          assert n==len(p)-52
+          payload=p[52:]
+          dfile=payload[3] | payload[4]<<8
+          assert dfile==0x7908
+          print("VALID T81:",len(p),"bytes; payload:",n,"D_FILE:",hex(dfile))
+          PY
+      - name: Upload test artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: MILO_v0.2_ZX81
+          path: |
+            milo/zx-81/chatgpt-1/MILO_v0.2_ZX81.t81
+            milo/zx-81/chatgpt-1/MILO_v0.2_ZX81.p
