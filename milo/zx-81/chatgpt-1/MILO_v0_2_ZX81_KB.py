@@ -38,10 +38,10 @@ Usage: python3 zx81ai_kb.py [out.bin]
 """
 import sys
 
-MEM_ADDR = 0x5918
-BASE_ADDR = 0x5A18
-PACK_WEATHER = 0x65A8
-PACK_RETRO = 0x6BD0
+MEM_ADDR = 0x5E20
+BASE_ADDR = 0x6020
+PACK_WEATHER = 0x6800
+PACK_RETRO = 0x6E00
 TURBO_ADDR = 0x7290
 OUTBUF_ADDR = 0x72F0
 LINEIN_ADDR = 0x73F0
@@ -49,12 +49,12 @@ MISC_ADDR = 0x7460
 HIST_ADDR = 0x7480
 WORK_END = 0x7903          # HIST ring end; the D-file is built from here
 
-PROMPT_RESERVE = 0x6A60     # parked prompts live in the weather slot tail
+PROMPT_RESERVE = 0x6C00     # parked prompts live in the weather slot tail
 
 BANK_LIMITS = (
     ('base', BASE_ADDR, PACK_WEATHER),
     ('weather', PACK_WEATHER, PROMPT_RESERVE),
-    ('retro', PACK_RETRO, TURBO_ADDR),
+    ('retro', PACK_RETRO, HELP_C1),
 )
 NAME_LIMIT = 12
 
@@ -66,12 +66,12 @@ HELP_C3 = 0x7200
 HELP_PAGE = 0x80
 PROMPT_SLOTS = (
     # parked boot prompts: (name, text, slot addr)
-    ('PH_HELP',  'want help with usage? (y/n)', 0x6A60),
-    ('PH_DATE',  'date? dd mm yy (like 21 11 26)', 0x6AA0),
-    ('PH_TIME',  'time? hh mm (like 9 30)', 0x6AE0),
-    ('PH_NAME',  'your name?', 0x6B20),
-    ('PH_CALL',  'how may i call you? (enter)', 0x6B60),
-    ('PH_CARE',  'last time you felt bad. all good now? (y/n)', 0x6BA0),
+    ('PH_HELP',  'want help with usage? (y/n)', 0x6C00),
+    ('PH_DATE',  'date? dd mm yy (like 21 11 26)', 0x6C40),
+    ('PH_TIME',  'time? hh mm (like 9 30)', 0x6C80),
+    ('PH_NAME',  'your name?', 0x6CC0),
+    ('PH_CALL',  'how may i call you? (enter)', 0x6D00),
+    ('PH_CARE',  'last time you felt bad. all good now? (y/n)', 0x6D40),
 )
 
 # Boot help + /help, three pages of max 4 lines x 30 chars each.
@@ -101,65 +101,56 @@ HELPCHAT = (
 #  14 show-help             15 pack-ask         16 fallback  17 about
 #  18 save-and-exit         19 list-topics
 BASE = [
-    (0, 0, "hi | hello | hey | greetings", "hello $n. i am awake. ~ greetings, $n. what shall we explore?"),
-    (0, 0, "how are you | are you ok", "i am fine. small machine, busy mind. and you, $n?"),
-    (0, 0, "thanks | thank you", "you are welcome, $n."),
-    (17, 0, "who are you | what are you | your name", "i am milo, a micro intelligent language organism for the zx81."),
+    (0, 0, "hi | hello | hey", "hello $n. what shall we explore?"),
+    (0, 0, "how are you | are you ok", "i am fine. small machine, busy mind."),
+    (17, 0, "who are you | your name | what are you", "i am milo, a micro intelligent language organism for the zx81."),
     (0, 0, "who made you | who built you | mistral", "milo was made and trained by the mistral model, from the design of safar sandor."),
-    (0, 0, "who is safar | who is safar sandor | safar sandor", "Magyarorszagon elo buszvezeto, hobbi csillagasz es programozo (safizx81@gmail.com), amator iro (Alexander Steward iroi even)."),
-    (0, 0, "who designed you | whose idea are you", "the idea and plan came from safar sandor. the original model work came through mistral."),
+    (0, 0, "who is safar | who is safar sandor", "Magyarorszagon elo buszvezeto, hobbi csillagasz es programozo (safizx81@gmail.com), amator iro (Alexander Steward iroi even)."),
+    (0, 0, "who designed you | whose idea", "the idea and plan came from safar sandor. the original model work came through mistral."),
     (0, 0, "what is kirrda | kirrda", "kirrda is a science fiction adventure by safar sandor, written as alexander steward. aliens catch an old earth tv broadcast, then a catastrophe drives survivors toward earth and new friends."),
-    (0, 0, "write a short story | tell me a story | story", "a bus rolled through the night with only the stars for company. then a strange light crossed the road and stopped above the trees. the driver looked up and smiled: at last, someone else was watching."),
-    (0, 0, "another story | one more story", "the old computer woke after midnight. its tape motor clicked once, then a message appeared: do not look at the moon. naturally, the curious owner looked straight up."),
-    (0, 0, "teach me | how can i teach you | how to teach you", "teach me with simple facts and sentences. names, places and feelings can be remembered; general facts are a future learning feature."),
-    (0, 0, "draw | drawing | draw a house | can you draw", "yes. i can describe zx81 drawings and give plot or unplot basic. say: draw a house."),
-    (0, 0, "program | programming | write a program | can you write code", "yes. ask for a short zx81 basic program, for example a clock, sine wave, game or plot drawing."),
-    (0, 0, "what can you do | capabilities", "i chat, remember some personal facts, explain topics, tell short stories and give zx81 basic ideas."),
-    (0, 0, "what is time | what time is it | give me the time", "it is $t $p."),
-    (0, 0, "set time | change time | time is", "use /time hh mm, for example /time 15 30."),
-    (0, 0, "remind me | reminder | remind me later", "use /remind n. for example /remind 2 means speak again after about two minutes."),
-    (0, 0, "help | commands | what commands", "use /help. also /topics, /time hh mm, /remind n, /temp n, /reason n, /mem, /save and /forget."),
-    (19, 0, "topics | what topics | what do you know | subjects", "."),
-    (15, 1, "knowledge | knowledge pack | load knowledge", "knowledge pack on tape. press space to load."),
-    (15, 2, "games | game pack | load games", "games pack on tape. press space to load."),
+    (0, 0, "write a short story | tell me a story | story", "a bus rolled through the night. a strange light stopped above the trees. the driver looked up and smiled: at last, someone else was watching.~the old computer woke after midnight. its tape motor clicked once. a message appeared: do not look at the moon. naturally, the owner looked up.~on a quiet planet, a child found a radio signal hidden in the noise. it came from far away. the child kept listening."),
+    (0, 0, "teach me | how to teach you", "teach me with simple facts and sentences. general learning is still experimental."),
+    (0, 0, "draw | drawing | can you draw", "yes. ask for a zx81 plot or a simple drawing."),
+    (0, 0, "program | programming | write code", "yes. ask for a short zx81 basic program."),
+    (0, 0, "what time is it | what is the time", "it is $t $p."),
+    (0, 0, "set time | change time | time is", "use /time hh mm."),
+    (0, 0, "remind me | reminder", "use /remind n. for example /remind 2."),
+    (0, 0, "help | commands", "use /help. also /topics, /time hh mm, /remind n, /temp n, /reason n, /mem, /save and /forget."),
+    (19, 0, "topics | what topics | subjects", "."),
+    (15, 1, "knowledge | knowledge pack", "knowledge pack on tape. press space to load."),
+    (15, 2, "games | game pack", "games pack on tape. press space to load."),
     (16, 0, "|", "i do not know that yet. ask /topics or teach me a fact."),
 ]
 
 WEATHER = [
-    (0, 1, "health | health topic | medicine | body", "health can cover sleep, exercise, food, stress and basic biology. i am not a doctor."),
-    (0, 1, "sleep | tired | exercise | food | stress", "basic health: sleep enough, move regularly, eat sensibly and seek a professional for serious symptoms."),
-    (0, 1, "philosophy | philosophy topic | ethics | meaning", "philosophy asks what is true, good, meaningful and worth knowing."),
-    (0, 1, "learning | study | school", "learning works best in small steps: question, example, practice, feedback."),
-    (0, 1, "elementary school | primary school", "elementary learning can cover reading, maths, nature, history and simple science."),
-    (0, 1, "secondary school | high school", "secondary learning can cover algebra, physics, chemistry, history, literature and computing."),
-    (0, 1, "art | painting | sculpture", "art can represent, question, decorate or simply annoy your neighbour. all are legitimate possibilities."),
-    (0, 1, "music | song | musician | melody | rhythm", "melody is pitch in sequence, rhythm is timing, harmony is simultaneous pitch relationships."),
-    (0, 1, "astronomy | stars | planets | universe | galaxy", "a star shines by nuclear fusion; a planet mostly shines by reflecting light. ask more."),
-    (0, 1, "programming | basic | z80 | assembly", "programming is giving precise instructions to a machine that has no mercy for ambiguity."),
-    (0, 1, "physics | chemistry | biology | science", "science works by observation, measurement, models and tests. ask for a simple explanation."),
-    (0, 1, "history | ancient history | world war", "history is evidence plus interpretation. ask for a period or event."),
-    (0, 1, "literature | books | writing", "literature turns language into stories, ideas and feelings. ask for a genre or technique."),
-    (0, 1, "cars | automobile | car | engines | brakes | tyres", "cars combine mechanics, electronics, control and design. ask about engines, brakes or old cars."),
-    (0, 1, "motorcycles | motorbike | motorcycle", "motorcycles are compact machines with an engine, frame, suspension and two wheels."),
-    (0, 1, "retro | old computers | 8 bit | nostalgia", "retro computing was an age of tiny memory, clever tricks and very patient loading tapes."),
-    (0, 1, "zx81 | what is a zx81 | this machine", "the zx81 is a z80 home computer from 1981. its 16k expansion is tiny by modern standards and huge by its own."),
-    (0, 1, "zx spectrum | commodore 64 | atari | amstrad", "retro machines differ, but all reward patience, manuals and knowing where the bytes live."),
-    (0, 1, "kirrda | kirrda book | science fiction", "kirrda is about an alien viewpoint on a possible first contact, disaster and the search for a new home on earth."),
+    (0, 1, "health | medicine | body", "health can cover sleep, exercise, food and basic biology. i am not a doctor."),
+    (0, 1, "philosophy | ethics | meaning", "philosophy asks what is true, good and meaningful."),
+    (0, 1, "learning | study | school", "learn in steps: question, example, practice, feedback."),
+    (0, 1, "elementary school | primary school", "reading, maths, nature, history and simple science."),
+    (0, 1, "secondary school | high school", "algebra, physics, chemistry, history, literature and computing."),
+    (0, 1, "art | painting | sculpture", "art can represent, question, decorate or surprise."),
+    (0, 1, "music | song | melody | rhythm", "melody is pitch in sequence; rhythm is timing; harmony is simultaneous pitch."),
+    (0, 1, "astronomy | stars | planets | universe", "stars shine by fusion; planets mostly reflect light."),
+    (0, 1, "programming | basic | z80 | assembly", "programming is precise instructions for a machine with no mercy for ambiguity."),
+    (0, 1, "cars | automobile | engines | brakes", "cars combine propulsion, steering, braking, suspension and electronics."),
+    (0, 1, "motorcycles | motorbike | motorcycle", "motorcycles are compact machines with an engine, frame and two wheels."),
+    (0, 1, "retro | old computers | 8 bit | zx81", "retro computing means tiny memory, clever tricks and patient loading tapes."),
+    (0, 1, "kirrda | kirrda book | science fiction", "kirrda shows a possible first contact from the alien side, then disaster and a search for a new home on earth."),
     (0, 1, "draw a sine wave | plot sine", "10 FOR N=0 TO 63 #20 PLOT N,22+20*SIN(N/32*PI) #30 NEXT N"),
     (0, 1, "basic clock | write a clock", "10 FOR T=0 TO 10000 #20 PRINT T #30 PAUSE 50 #40 GOTO 10"),
-    (16, 1, "|", "the knowledge pack has no answer. try science, health, cars, astronomy, music or kirrda."),
+    (16, 1, "|", "try health, philosophy, learning, art, music, astronomy, cars or kirrda."),
 ]
 
 RETRO = [
-    (0, 2, "games | game", "games pack loaded. try number game, riddle, true or false, chess or adventure."),
-    (0, 2, "number game | guess a number | think of a number", "think of a number from 1 to 10. i will use questions and a trick to narrow it down."),
-    (0, 2, "riddle | puzzle", "riddle: what has a face and two hands but no arms or legs?"),
-    (0, 2, "true or false | quiz", "quiz round one: the zx81 uses a z80 processor. true or false?"),
-    (0, 2, "chess | play chess | chess game", "chess is possible as a future interactive mode. for now i can discuss moves, openings and rules."),
-    (0, 2, "text adventure | adventure game | adventure", "adventure begins: you stand before a locked observatory door. left is a forest, right is a radio tower. choose left or right."),
-    (0, 2, "right | tower | climb", "you reach the radio tower. a weak signal says: three lights, then silence. climb or listen?"),
-    (0, 2, "left | forest", "the forest is quiet. you find a metal box under a tree. open it or leave it?"),
-    (16, 2, "|", "games pack: try number game, riddle, true or false, chess or adventure."),
+    (0, 2, "games | game", "try number game, riddle, true or false, chess or adventure."),
+    (0, 2, "number game | guess a number", "think of a number from 1 to 10. i will narrow it down."),
+    (0, 2, "riddle | puzzle", "riddle: what has a face and two hands but no arms?"),
+    (0, 2, "true or false | quiz", "round one: the zx81 uses a z80. true or false?"),
+    (0, 2, "chess | chess game", "give a move like e2 e4. full chess engine later."),
+    (0, 2, "adventure | text adventure", "you stand before a locked observatory. left is a forest, right is a radio tower."),
+    (0, 2, "right | tower", "the tower hears a weak signal: three lights, then silence. climb or listen?"),
+    (0, 2, "left | forest", "the forest hides a metal box. open it or leave it?"),
+    (16, 2, "|", "games: number game, riddle, true or false, chess, adventure."),
 ]
 
 HELP_TEXT = (
