@@ -1,25 +1,25 @@
-# ChatGPT 3 — PIOCO AI ZX81 breakpoint
+# ChatGPT 3 — PICO AI ZX81 breakpoint
 
 ## Workspace
 `chatgpt/zx-81/chatgpt-3/`
 
 ## Hivatalos kiindulópont
-Olvasd el a [BASELINE.md](BASELINE.md) dokumentumot minden további munka előtt.
+Olvasd el a [BASELINE.md](BASELINE.md) és [VERSIONING.md](VERSIONING.md) dokumentumokat minden további munka előtt.
 
 A kiválasztott alapverzió:
-- `PIOCO_AI_English_16K_CleanDisplay.t81` — 225 941 B
+- Hivatalos helyi kiadási név: `PICO_AI_ZX81_16K_v0.1.0.t81` — 225 941 B
 - SHA-256: `6d2025bd66435ed51540efeb7e098292926a0f8b2ce9a489103a2fe3d33faea5`
-- Társított archívum: `PIOCO_AI_English_16K_CleanDisplay_artifact.zip` — 36 049 B
-- Az archívum belső `PIOCO_AI_English_16K_ROM_INPUT.t81` fájlja byte-identical a kiválasztott CleanDisplay kazettával.
+- Társított archívum: `PICO_AI_ZX81_16K_v0.1.0_build.zip` — 36 049 B
+- Az archívum belső T81 állománya byte-identical a kiválasztott CleanDisplay kazettával.
 
-A két helyi fájl a jelenlegi ChatGPT-munkamenetben elérhető, de a binárisok még nincsenek feltöltve ebbe a GitHub-repóba. A fájlnevek és hash-ek részleteit a BASELINE.md tartalmazza.
+A helyi verziózott fájlnevek nem jelentik azt, hogy a bináris belsejét átírtam. A jelenlegi buildarchívumban a régi `PIOCO AI PROFILE OK` és `tinyllm v0.5.4` szövegek is megtalálhatók. A következő új build bootképernyőjén már `PICO AI ZX81` és a vele egyező kiadási verzió jelenjen meg.
 
 ## Korábbi, nem kiválasztott jelölt
-A `PIOCO_AI_English_16K_IYBootstrap_Final2_artifact.zip` más buildet tartalmaz. Ne használd a CleanDisplay helyettesítésére, és a belső ROM_INPUT kazettát se keverd össze a kiválasztott alapváltozattal, kivéve, ha egy külön összehasonlítás ezt kifejezetten vizsgálja.
+A `PIOCO_AI_English_16K_IYBootstrap_Final2_artifact.zip` más buildet tartalmaz. Ne használd a CleanDisplay helyettesítésére.
 
 ## Bizonyítottság
 - A T81 és a CleanDisplay buildarchívum belső T81 állománya azonos méretű és SHA-256 értékű.
-- A T81 és az archívum SHA-256 értékei ellenőrizve a helyi munkakörnyezetben.
+- A verziózott helyi másolatok hash-e egyezik az eredeti állományokéval.
 - Ez még nem friss EightyOne/ZEsarUX emulátorteszt.
 - A csomaghoz tartozó ZIP-ben nincs teljes forrásfa és automatizált teljes buildrecept; forrásból történő reprodukálhatóság még nincs igazolva.
 
@@ -30,8 +30,9 @@ A `PIOCO_AI_English_16K_IYBootstrap_Final2_artifact.zip` más buildet tartalmaz.
 4. A ROM INPUT profilbeviteli útvonal, karakterkezelés, backspace és billentyűismétlés vizsgálata.
 5. D_FILE 24 sorának, sorvégeinek és a záró STOP bájtnak ellenőrzése.
 6. CleanDisplay futtatása EightyOne V1.41-ben; utána külön ZEsarUX- vagy valós ZX81-ellenőrzés, amennyiben elérhető.
-7. Csak a megfigyelt hiba okának azonosítása után készülhet javítás. Minden javítás külön build, külön T81 és regressziós jegyzőkönyv.
-8. Az eredeti baseline változatlanul megőrzendő.
+7. Források és assembler/buildrecept beszerzése vagy visszaállítása. A boot név/verzió szövegét ezután a forrásban kell módosítani, majd teljesen újrafordítani.
+8. Csak a megfigyelt hiba okának azonosítása után készülhet javítás. Minden javítás külön build, külön T81 és regressziós jegyzőkönyv.
+9. Az eredeti baseline változatlanul megőrzendő.
 
 ## Guardrails
 - Soha ne módosítsd a `chatgpt-1` vagy `chatgpt-2` könyvtárat.
