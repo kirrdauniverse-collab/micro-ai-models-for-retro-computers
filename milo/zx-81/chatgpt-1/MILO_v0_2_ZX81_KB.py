@@ -38,10 +38,10 @@ Usage: python3 zx81ai_kb.py [out.bin]
 """
 import sys
 
-MEM_ADDR = 0x5E20
-BASE_ADDR = 0x6020
-PACK_WEATHER = 0x6840
-PACK_RETRO = 0x7000
+MEM_ADDR = 0x5EC0
+BASE_ADDR = 0x60C0
+PACK_WEATHER = 0x68E0
+PACK_RETRO = 0x70A0
 TURBO_ADDR = 0x7290
 OUTBUF_ADDR = 0x72F0
 LINEIN_ADDR = 0x73F0
@@ -49,7 +49,7 @@ MISC_ADDR = 0x7460
 HIST_ADDR = 0x7480
 WORK_END = 0x7903          # HIST ring end; the D-file is built from here
 
-PROMPT_RESERVE = 0x6E80     # parked prompts live in the weather slot tail
+PROMPT_RESERVE = 0x6F20     # parked prompts live in the weather slot tail
 
 BANK_LIMITS = (
     ('base', BASE_ADDR, PACK_WEATHER),
@@ -66,12 +66,12 @@ HELP_C3 = 0x7200
 HELP_PAGE = 0x80
 PROMPT_SLOTS = (
     # parked boot prompts: (name, text, slot addr)
-    ('PH_HELP',  'want help with usage? (y/n)', 0x6E80),
-    ('PH_DATE',  'date? dd mm yy (like 21 11 26)', 0x6EB0),
-    ('PH_TIME',  'time? hh mm (like 9 30)', 0x6EE0),
-    ('PH_NAME',  'your name?', 0x6F10),
-    ('PH_CALL',  'how may i call you? (enter)', 0x6F40),
-    ('PH_CARE',  'last time you felt bad. all good now? (y/n)', 0x6F70),
+    ('PH_HELP',  'want help with usage? (y/n)', 0x6F20),
+    ('PH_DATE',  'date? dd mm yy (like 21 11 26)', 0x6F50),
+    ('PH_TIME',  'time? hh mm (like 9 30)', 0x6F80),
+    ('PH_NAME',  'your name?', 0x6FB0),
+    ('PH_CALL',  'how may i call you? (enter)', 0x6FE0),
+    ('PH_CARE',  'last time you felt bad. all good now? (y/n)', 0x7010),
 )
 
 # Boot help + /help, three pages of max 4 lines x 30 chars each.
