@@ -40,8 +40,8 @@ import sys
 
 MEM_ADDR = 0x5E20
 BASE_ADDR = 0x6020
-PACK_WEATHER = 0x6800
-PACK_RETRO = 0x6E00
+PACK_WEATHER = 0x6840
+PACK_RETRO = 0x7000
 TURBO_ADDR = 0x7290
 OUTBUF_ADDR = 0x72F0
 LINEIN_ADDR = 0x73F0
@@ -49,12 +49,12 @@ MISC_ADDR = 0x7460
 HIST_ADDR = 0x7480
 WORK_END = 0x7903          # HIST ring end; the D-file is built from here
 
-PROMPT_RESERVE = 0x6C00     # parked prompts live in the weather slot tail
+PROMPT_RESERVE = 0x6E80     # parked prompts live in the weather slot tail
 
 BANK_LIMITS = (
     ('base', BASE_ADDR, PACK_WEATHER),
     ('weather', PACK_WEATHER, PROMPT_RESERVE),
-    ('retro', PACK_RETRO, HELP_C1),
+    ('retro', PACK_RETRO, TURBO_ADDR),
 )
 NAME_LIMIT = 12
 
@@ -66,12 +66,12 @@ HELP_C3 = 0x7200
 HELP_PAGE = 0x80
 PROMPT_SLOTS = (
     # parked boot prompts: (name, text, slot addr)
-    ('PH_HELP',  'want help with usage? (y/n)', 0x6C00),
-    ('PH_DATE',  'date? dd mm yy (like 21 11 26)', 0x6C40),
-    ('PH_TIME',  'time? hh mm (like 9 30)', 0x6C80),
-    ('PH_NAME',  'your name?', 0x6CC0),
-    ('PH_CALL',  'how may i call you? (enter)', 0x6D00),
-    ('PH_CARE',  'last time you felt bad. all good now? (y/n)', 0x6D40),
+    ('PH_HELP',  'want help with usage? (y/n)', 0x6E80),
+    ('PH_DATE',  'date? dd mm yy (like 21 11 26)', 0x6EB0),
+    ('PH_TIME',  'time? hh mm (like 9 30)', 0x6EE0),
+    ('PH_NAME',  'your name?', 0x6F10),
+    ('PH_CALL',  'how may i call you? (enter)', 0x6F40),
+    ('PH_CARE',  'last time you felt bad. all good now? (y/n)', 0x6F70),
 )
 
 # Boot help + /help, three pages of max 4 lines x 30 chars each.
@@ -275,7 +275,7 @@ def default_mem_slot():
 
 
 def build_blob():
-    """Return the whole parked knowledge image (mem 0x55D0..0x7753)."""
+    """Return the parked MILO image from MEM through WORK_END."""
     base = bank_bytes('BASE', BASE)
     wea = bank_bytes('KNOWLEDGE', WEATHER)
     ret = bank_bytes('GAMES', RETRO)
@@ -283,44 +283,34 @@ def build_blob():
     spans = []
     data_list = ((base, BANK_LIMITS[0]), (wea, BANK_LIMITS[1]),
                  (ret, BANK_LIMITS[2]))
-    spans = []
     for data, limits in data_list:
         tag, lo, hi = limits
         while len(blob) < lo - MEM_ADDR:
             blob += b'\0'
-        spans.append((tag, MEM_ADDR + len(blob), MEM_ADDR + len(blob) + len(data)))
+        start = MEM_ADDR + len(blob)
+        end = start + len(data)
+        if end > hi:
+            raise SystemExit('bank %s overflow: 0x%X..0x%X (slot 0x%X..0x%X)'
+                             % (tag, start, end, lo, hi))
+        spans.append((tag, start, end))
         blob += data
-    pos = HELP_C1
-    ret_end = MEM_ADDR + len(blob)
-    if ret_end > HELP_C1:
-        raise SystemExit('retro bank overflows help-page reserve '
-                         '(0x%X > 0x%X)' % (ret_end, HELP_C1))
-    for page in help_chunks():
-        if pos + HELP_PAGE > TURBO_ADDR:
-            raise SystemExit('help pages overflow the turbo reserve')
-        while len(blob) < pos - MEM_ADDR:
-            blob += b'\0'
-        blob += page
-        pos += HELP_PAGE
+
     for name, (addr, data) in prompt_bytes().items():
         while len(blob) < addr - MEM_ADDR:
             blob += b'\0'
-        blob = blob[:addr - MEM_ADDR] + data + blob[addr - MEM_ADDR + len(data):]
-    parked_end = max(addr + len(d) for addr, d in prompt_bytes().values())
-    print('  prompts  0x%04X..0x%04X (6 parked)' % (0x6A00, parked_end - 1))
+        off = addr - MEM_ADDR
+        blob[off:off + len(data)] = data
+
     while len(blob) < TURBO_ADDR - MEM_ADDR:
         blob += b'\0'
     blob += turbo_stub()
-    print('  help     0x%04X..0x%04X (3 pages)' % (HELP_C1, pos - 1))
+
     while len(blob) < WORK_END - MEM_ADDR:
         blob += b'\0'
 
-    for tag, s, e in spans:
-        _, lo, hi = next(x for x in BANK_LIMITS if x[0] == tag)
-        if not (lo == s and e <= hi):
-            raise SystemExit('bank %s overflow: 0x%X..0x%X (slot 0x%X..0x%X)'
-                             % (tag, s, e, lo, hi))
-        print('  %-8s 0x%04X..0x%04X  (%4d bytes)' % (tag, s, e, e - s))
+    for tag, start, end in spans:
+        print('  %-8s 0x%04X..0x%04X (%4d bytes)' %
+              (tag, start, end, end - start))
     print('  mem      0x%04X (512 bytes)' % MEM_ADDR)
     print('  turbo    0x%04X (96 bytes, reserved, inert)' % TURBO_ADDR)
     return bytes(blob)
