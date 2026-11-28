@@ -74,6 +74,14 @@ def preprocess(src_path):
             core = re.sub(r"\b%s\b" % name, hex(equs[name]), core)
         core = re.sub(r",\s+\(", ",(", core)
         core = re.sub(r"0x[0-9A-Fa-f]+", lambda m: str(int(m.group(0), 16)), core)
+        pat = re.compile(r"(-?\d+)\s*([+\-])\s*(-?\d+)")
+        while True:
+            m = pat.search(core)
+            if not m:
+                break
+            a, b = int(m.group(1)), int(m.group(3))
+            val = a + b if m.group(2) == "+" else a - b
+            core = core[:m.start()] + str(val & 0xFFFF) + core[m.end():]
         out.append(core)
     return "\n".join(out)
 
@@ -144,10 +152,6 @@ def main():
     text = preprocess(asm)
     tmp = "/tmp/MILO_v0.2_engine.src"
     open(tmp, "w", encoding="utf-8").write(text)
-    print("DEBUG asm 125-136:")
-    for no, line in enumerate(text.splitlines(), 1):
-        if 125 <= no <= 136:
-            print("%03d: %s" % (no, line))
     org, engine = assemble(tmp)
     if org != ENGINE_ORG:
         raise SystemExit("engine org 0x%04X != 0x%04X" % (org, ENGINE_ORG))
