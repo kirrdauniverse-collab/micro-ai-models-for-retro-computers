@@ -10,7 +10,7 @@ import os, re, sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
-from MILO_v0.2_ZX81_KB import build_blob, MEM_ADDR
+from MILO_v0_2_ZX81_KB import build_blob, MEM_ADDR
 
 ENGINE_ORG = 0x4082
 D_FILE = 0x7908
@@ -49,7 +49,7 @@ def preprocess(src_path):
     if missing:
         raise SystemExit("EQU UNSOLVED: %s" % sorted(missing))
 
-    from MILO_v0.2_ZX81_KB import enc
+    from MILO_v0_2_ZX81_KB import enc
     out = []
     for ln in lines:
         s = ln.strip()
