@@ -24,10 +24,10 @@
 ; assembler's verified subset are used here.
 
 ; ---------------------------------------------------------- addresses
-MEMADD     equ 0x5E20      ; MEM slot (512 B, inside the image)
-BASEADD    equ 0x6020      ; BASE bank
-PACKWADD   equ 0x6840      ; WEATHER pack
-PACKRADD   equ 0x7000      ; RETRO pack
+MEMADD     equ 0x5EC0      ; MEM slot (512 B, inside the image)
+BASEADD    equ 0x60C0      ; BASE bank
+PACKWADD   equ 0x68E0      ; WEATHER pack
+PACKRADD   equ 0x70A0      ; RETRO pack
 TURBOADD   equ 0x7290      ; RT-TURBO reservation (inert, magic RTT1)
 OUTBUF     equ 0x72F0      ; 64 B scratch (status rows, composing)
 XL         equ OUTBUF+62   ; scratch pointer save L
