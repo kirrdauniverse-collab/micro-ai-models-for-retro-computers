@@ -140,11 +140,20 @@ HB_BEGIN:
         ret
 
 ; HB_CH: A = ZX code -> next cell
+; (v1.1.7-diag) bounds check: HB_P sits right after HDRB ($61B8), so a write past
+; cell 31 would overwrite HB_P itself and the next write goes to a random address.
 HB_CH:  push hl
+        push de
         ld hl,(HB_P)
+        ld de,HDRB+32
+        or a
+        sbc hl,de               ; carry set when HB_P < end of buffer
+        jr nc,HBC_SKIP          ; no room: drop the character
+        add hl,de               ; HL = HB_P again
         ld (hl),a
         inc hl
         ld (HB_P),hl
+HBC_SKIP: pop de
         pop hl
         ret
 
